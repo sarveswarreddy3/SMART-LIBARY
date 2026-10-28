@@ -9,7 +9,7 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
 
-    app = Flask(__name__)
+    app = Flask(__name__, instance_path='/tmp/instance')
     app.config.from_object(config.get(config_name, config['default']))
 
     # Ensure upload directory exists

@@ -8,10 +8,18 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-smart-library-academic-2026')
     
     # Database config: Support SQLite locally and PostgreSQL for persistent cloud hosts
-    db_url = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.join(basedir, "library.db")}')
-    if db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
-    SQLALCHEMY_DATABASE_URI = db_url
+    db_url = os.environ.get('DATABASE_URL')
+
+    if db_url:
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        SQLALCHEMY_DATABASE_URI = db_url
+    else:
+        # Local development database
+        SQLALCHEMY_DATABASE_URI = (
+            'sqlite:///' + os.path.join(basedir, 'library.db')
+        )
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # File uploads
