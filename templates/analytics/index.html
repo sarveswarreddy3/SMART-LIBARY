@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Hub - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-navy mb-1">Library Circulation Intelligence &amp; Book Analytics</h3>
+        <p class="text-secondary small mb-0">Empirical data analysis powered by Pandas and NumPy over live database transaction records.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.index') }}" class="btn btn-outline-navy btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-bar-graph"></i> Export Reports
+        </a>
+    </div>
+</div>
+
+<!-- Interactive Timeframe & Category Filter Controls -->
+<div class="card card-custom mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('analytics.index') }}" class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <label class="small text-muted fw-semibold me-2">Time Horizon:</label>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="{{ url_for('analytics.index', months=3, category=selected_category) }}" class="btn {% if selected_months == 3 %}btn-navy{% else %}btn-outline-secondary{% endif %}">Last 3 Months</a>
+                    <a href="{{ url_for('analytics.index', months=6, category=selected_category) }}" class="btn {% if selected_months == 6 %}btn-navy{% else %}btn-outline-secondary{% endif %}">Last 6 Months</a>
+                    <a href="{{ url_for('analytics.index', months=12, category=selected_category) }}" class="btn {% if selected_months == 12 %}btn-navy{% else %}btn-outline-secondary{% endif %}">Last 12 Months</a>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-5">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small text-muted fw-semibold text-nowrap">Filter Category:</label>
+                    <select class="form-select form-select-sm" name="category" onchange="this.form.submit()">
+                        <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Disciplines / Categories</option>
+                        {% for cat in all_categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-2 text-md-end">
+                <input type="hidden" name="months" value="{{ selected_months }}">
+                <button type="submit" class="btn btn-teal btn-sm w-100">
+                    <i class="bi bi-arrow-repeat me-1"></i> Update Analytics
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- KPI Metrics Summary Bar -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="stat-label">Stock Utilization</span>
+            <div class="stat-value text-teal">{{ kpis.utilization_rate }}%</div>
+            <div class="progress mt-2" style="height: 6px;">
+                <div class="progress-bar bg-teal" role="progressbar" style="width: {{ kpis.utilization_rate }}%"></div>
+            </div>
+            <small class="text-muted mt-2 d-block">{{ kpis.issued_copies }} of {{ kpis.total_copies }} copies in circulation</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="stat-label">Active Loans Volume</span>
+            <div class="stat-value text-primary">{{ kpis.active_loans }}</div>
+            <small class="text-muted mt-2 d-block">Simultaneous borrowed titles</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="stat-label">Overdue Ratio</span>
+            {% set overdue_ratio = ((kpis.overdue_loans / kpis.active_loans * 100) if kpis.active_loans > 0 else 0)|round(1) %}
+            <div class="stat-value {% if overdue_ratio > 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ overdue_ratio }}%
+            </div>
+            <small class="text-muted mt-2 d-block">{{ kpis.overdue_loans }} overdue of {{ kpis.active_loans }} active loans</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <span class="stat-label">Settled Penalties</span>
+            <div class="stat-value text-navy">{{ currency }}{{ "%.2f"|format(kpis.fines_collected) }}</div>
+            <small class="text-muted mt-2 d-block">Collected overdue library fines</small>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1: Circulation Trends & Inventory Availability -->
+<div class="row g-4 mb-4">
+    <!-- Monthly Borrowing vs Return Trends -->
+    <div class="col-lg-8">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-graph-up text-teal"></i>
+                    <span>Circulation Volume: Borrowing vs Returns</span>
+                </div>
+                <span class="badge bg-light text-secondary border">{{ selected_months }} Month Horizon</span>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 300px; position: relative;">
+                    <canvas id="circulationTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Availability Breakdown -->
+    <div class="col-lg-4">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-pie-chart text-teal"></i>
+                    <span>Copy Availability Breakdown</span>
+                </div>
+            </div>
+            <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                <div style="height: 220px; width: 100%; position: relative;">
+                    <canvas id="inventoryChart"></canvas>
+                </div>
+                <div class="d-flex justify-content-around w-100 mt-3 pt-3 border-top text-center">
+                    <div>
+                        <div class="small text-muted">Available</div>
+                        <div class="fw-bold text-teal fs-5">{{ kpis.available_copies }}</div>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Issued</div>
+                        <div class="fw-bold text-primary fs-5">{{ kpis.issued_copies }}</div>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Total Stock</div>
+                        <div class="fw-bold text-navy fs-5">{{ kpis.total_copies }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2: Most Borrowed Books & Top Active Borrowers -->
+<div class="row g-4 mb-4">
+    <!-- Most Borrowed Books -->
+    <div class="col-lg-6">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-bar-chart text-teal"></i>
+                    <span>Most Borrowed Book Titles</span>
+                </div>
+                <span class="badge bg-light text-secondary border">Top Circulation</span>
+            </div>
+            <div class="card-body p-4">
+                {% if top_books.titles %}
+                <div style="height: 280px; position: relative;">
+                    <canvas id="topBooksChart"></canvas>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
+                    No book borrow events recorded yet.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Active Borrowers -->
+    <div class="col-lg-6">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-award text-amber"></i>
+                    <span>Top Active Library Borrowers</span>
+                </div>
+                <span class="badge bg-light text-secondary border">Member Volume</span>
+            </div>
+            <div class="card-body p-4">
+                {% if top_members.names %}
+                <div style="height: 280px; position: relative;">
+                    <canvas id="topMembersChart"></canvas>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-people fs-1 d-block mb-2"></i>
+                    No member borrowing records available.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3: Department-wise Borrowing & Overdue Aging Duration Brackets -->
+<div class="row g-4">
+    <!-- Department Distribution -->
+    <div class="col-lg-7">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-building text-teal"></i>
+                    <span>Department Borrowing Distribution</span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                {% if departments.departments %}
+                <div style="height: 260px; position: relative;">
+                    <canvas id="departmentChart"></canvas>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    No department circulation data recorded.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Loan Aging Brackets (NumPy Analysis) -->
+    <div class="col-lg-5">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-hourglass-split text-danger"></i>
+                    <span>Overdue Aging Brackets (NumPy)</span>
+                </div>
+                <span class="badge bg-danger text-white">{{ overdue_stats.total_overdue }} Total</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1 small fw-semibold">
+                        <span>1 to 7 Days Overdue</span>
+                        <span class="text-navy">{{ overdue_stats.brackets['1-7 Days'] }} loans</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" style="width: {{ (overdue_stats.brackets['1-7 Days'] / overdue_stats.total_overdue * 100) if overdue_stats.total_overdue > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1 small fw-semibold">
+                        <span>8 to 14 Days Overdue</span>
+                        <span class="text-navy">{{ overdue_stats.brackets['8-14 Days'] }} loans</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-amber" style="width: {{ (overdue_stats.brackets['8-14 Days'] / overdue_stats.total_overdue * 100) if overdue_stats.total_overdue > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1 small fw-semibold">
+                        <span>15 to 30 Days Overdue</span>
+                        <span class="text-navy">{{ overdue_stats.brackets['15-30 Days'] }} loans</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: {{ (overdue_stats.brackets['15-30 Days'] / overdue_stats.total_overdue * 100) if overdue_stats.total_overdue > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1 small fw-semibold">
+                        <span>30+ Days Critical Overdue</span>
+                        <span class="text-navy">{{ overdue_stats.brackets['30+ Days'] }} loans</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-dark" style="width: {{ (overdue_stats.brackets['30+ Days'] / overdue_stats.total_overdue * 100) if overdue_stats.total_overdue > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-light rounded-3 mt-4 border">
+                    <div class="small text-muted mb-1">Estimated Pending Penalties:</div>
+                    <div class="fw-bold fs-5 text-danger">{{ currency }}{{ "%.2f"|format(overdue_stats.total_projected_fines) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Circulation Trends (Line)
+    const trendCtx = document.getElementById('circulationTrendChart');
+    if (trendCtx) {
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: {{ trends.labels | tojson }},
+                datasets: [
+                    {
+                        label: 'Books Borrowed',
+                        data: {{ trends.borrowed | tojson }},
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#0d9488',
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Books Returned',
+                        data: {{ trends.returned | tojson }},
+                        borderColor: '#0f172a',
+                        backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#0f172a',
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Inter', size: 12 } } },
+                    tooltip: { padding: 10, cornerRadius: 8 }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#64748b' },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        ticks: { color: '#64748b' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Inventory Utilization (Doughnut)
+    const invCtx = document.getElementById('inventoryChart');
+    if (invCtx) {
+        new Chart(invCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Available Copies', 'Issued Copies'],
+                datasets: [{
+                    data: [{{ kpis.available_copies }}, {{ kpis.issued_copies }}],
+                    backgroundColor: ['#0d9488', '#2563eb'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } }
+                }
+            }
+        });
+    }
+
+    // 3. Most Borrowed Books (Horizontal Bar)
+    const bookCtx = document.getElementById('topBooksChart');
+    if (bookCtx) {
+        new Chart(bookCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ top_books.titles | tojson }},
+                datasets: [{
+                    label: 'Loans',
+                    data: {{ top_books.counts | tojson }},
+                    backgroundColor: '#0d9488',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    y: { ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    // 4. Top Borrowing Members (Horizontal Bar)
+    const memCtx = document.getElementById('topMembersChart');
+    if (memCtx) {
+        new Chart(memCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ top_members.names | tojson }},
+                datasets: [{
+                    label: 'Loans Taken',
+                    data: {{ top_members.counts | tojson }},
+                    backgroundColor: '#0f172a',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    y: { ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    // 5. Department Distribution (Bar)
+    const deptCtx = document.getElementById('departmentChart');
+    if (deptCtx) {
+        new Chart(deptCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ departments.departments | tojson }},
+                datasets: [{
+                    label: 'Loans by Department',
+                    data: {{ departments.counts | tojson }},
+                    backgroundColor: '#2563eb',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

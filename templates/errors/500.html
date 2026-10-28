@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}500 Internal Server Error{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-7 col-lg-5 text-center">
+        <div class="stat-icon rose mx-auto mb-3" style="width: 72px; height: 72px; font-size: 2.2rem;">
+            <i class="bi bi-gear-wide-connected"></i>
+        </div>
+        <h1 class="fw-bold text-navy display-4">500</h1>
+        <h4 class="fw-bold text-navy mb-2">Internal Server Error</h4>
+        <p class="text-secondary mb-4">
+            An unexpected error occurred while processing your request. The transaction has been rolled back safely to protect database integrity.
+        </p>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-navy px-4">
+            <i class="bi bi-house me-1"></i> Return to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}{{ member.full_name }} - Member Profile{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('members.index') }}" class="btn btn-sm btn-outline-secondary mb-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to Members Directory
+    </a>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="avatar-initials" style="width: 52px; height: 52px; font-size: 1.4rem;">
+                {{ member.full_name[:1].upper() }}
+            </div>
+            <div>
+                <h3 class="fw-bold text-navy mb-0">{{ member.full_name }}</h3>
+                <div class="text-secondary small">
+                    <span class="badge bg-light text-dark border me-1">{{ member.member_id }}</span>
+                    <span>Roll / ID: {{ member.student_staff_id }}</span> &bull; 
+                    <span>{{ member.department }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            {% if member.status == 'Active' %}
+            <a href="{{ url_for('transactions.issue', member_id=member.id) }}" class="btn btn-teal d-flex align-items-center gap-1">
+                <i class="bi bi-box-arrow-up-right"></i> Issue Book
+            </a>
+            {% endif %}
+            <a href="{{ url_for('members.edit', member_id=member.id) }}" class="btn btn-outline-navy d-flex align-items-center gap-1">
+                <i class="bi bi-pencil"></i> Edit Profile
+            </a>
+            {% if current_user.is_admin %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteMemberModal">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Membership Status</div>
+            <div class="mt-2">
+                {% if member.status == 'Active' %}
+                <span class="badge badge-status badge-available fs-6"><i class="bi bi-check-circle me-1"></i>Active</span>
+                {% elif member.status == 'Suspended' %}
+                <span class="badge badge-status badge-overdue fs-6"><i class="bi bi-pause-circle me-1"></i>Suspended</span>
+                {% else %}
+                <span class="badge badge-status badge-unavailable fs-6">{{ member.status }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Active Loans</div>
+            <div class="stat-value text-primary">{{ member.active_loans_count }}</div>
+            <small class="text-muted">Books currently with member</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Overdue Loans</div>
+            <div class="stat-value {% if member.overdue_loans_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                {{ member.overdue_loans_count }}
+            </div>
+            <small class="text-muted">Past due return date</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Lifetime Borrowed</div>
+            <div class="stat-value text-teal">{{ member.total_borrowed_count }}</div>
+            <small class="text-muted">Total books borrowed</small>
+        </div>
+    </div>
+</div>
+
+<!-- Contact & Member Info Card -->
+<div class="card card-custom mb-4">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="bi bi-person-lines-fill text-teal"></i> Contact &amp; Registration Details</div>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block">Email Address</span>
+                <span class="fw-semibold text-navy">{{ member.email }}</span>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block">Phone Number</span>
+                <span class="fw-semibold text-navy">{{ member.phone or 'Not provided' }}</span>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block">Department</span>
+                <span class="fw-semibold text-navy">{{ member.department }}</span>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block">Member Since</span>
+                <span class="fw-semibold text-navy">{{ member.membership_date.strftime('%B %d, %Y') if member.membership_date else 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Currently Borrowed Books -->
+<div class="card card-custom mb-4">
+    <div class="card-header-custom">
+        <div class="card-title-custom">
+            <i class="bi bi-journal-check text-teal"></i>
+            <span>Currently Borrowed Books ({{ active_loans|length }})</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if active_loans %}
+        <div class="table-responsive">
+            <table class="table table-custom table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Txn ID</th>
+                        <th>Book Title</th>
+                        <th>Shelf Location</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in active_loans %}
+                    <tr>
+                        <td><span class="fw-semibold">{{ loan.transaction_id }}</span></td>
+                        <td>
+                            <a href="{{ url_for('books.view', book_id=loan.book_id) }}" class="fw-bold text-navy text-decoration-none">
+                                {{ loan.book.title }}
+                            </a>
+                            <small class="text-muted d-block">by {{ loan.book.author }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ loan.book.shelf_location or 'General' }}</span>
+                        </td>
+                        <td>{{ loan.issue_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="badge {% if loan.is_overdue %}bg-danger{% else %}bg-primary{% endif %}">
+                                {{ loan.due_date.strftime('%Y-%m-%d') }}
+                                {% if loan.is_overdue %}({{ loan.overdue_days }}d overdue){% endif %}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('transactions.return_book', loan_id=loan.id) }}" class="btn btn-sm btn-outline-teal">
+                                <i class="bi bi-box-arrow-in-left me-1"></i> Return Book
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="bi bi-check2-circle fs-3 text-teal d-block mb-1"></i>
+            Member has no active book loans. Quota is fully available.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Historical Circulation Records -->
+<div class="card card-custom">
+    <div class="card-header-custom">
+        <div class="card-title-custom">
+            <i class="bi bi-clock-history text-secondary"></i>
+            <span>Member Borrowing History ({{ past_loans|length }})</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if past_loans %}
+        <div class="table-responsive">
+            <table class="table table-custom table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Transaction</th>
+                        <th>Book Title</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Return Date</th>
+                        <th>Fine Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in past_loans %}
+                    <tr>
+                        <td>{{ loan.transaction_id }}</td>
+                        <td>
+                            <span class="fw-semibold text-navy">{{ loan.book.title }}</span>
+                        </td>
+                        <td>{{ loan.issue_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ loan.due_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ loan.return_date.strftime('%Y-%m-%d') if loan.return_date else 'N/A' }}</td>
+                        <td>
+                            {% if loan.fine_amount > 0 %}
+                            <span class="badge {% if loan.fine_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                ${{ "%.2f"|format(loan.fine_amount) }} ({% if loan.fine_paid %}Paid{% else %}Unpaid{% endif %})
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">No prior borrowing history records found for this member.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Member Modal (Admin Only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title text-navy fw-bold">Delete Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2">Are you sure you want to remove:</p>
+                <p class="fw-bold text-navy fs-6 mb-3">"{{ member.full_name }}" ({{ member.member_id }})</p>
+                
+                {% if not can_delete %}
+                <div class="alert alert-danger py-2 px-3 small mb-0">
+                    <i class="bi bi-shield-x me-1"></i> <strong>Safe Deletion Restricted:</strong> {{ delete_reason }}
+                </div>
+                {% else %}
+                <div class="alert alert-warning py-2 px-3 small mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i> This member has no active loans or transaction records and can be safely deleted.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('members.delete', member_id=member.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" {% if not can_delete %}disabled{% endif %}>
+                        Confirm Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

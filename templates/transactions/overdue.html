@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Overdue Loans - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-navy mb-1">Overdue Circulation Monitor</h3>
+        <p class="text-secondary small mb-0">Track unreturned books past their due dates, evaluate accumulated fines, and reach out to members.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.export', fmt='pdf', report_type='overdue_books') }}" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-pdf"></i> Export Overdue PDF
+        </a>
+    </div>
+</div>
+
+<!-- Alert & Stat Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-md-4">
+        <div class="stat-card border-danger">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label text-danger">Total Overdue Loans</span>
+                    <div class="stat-value text-danger">{{ overdue_loans|length }}</div>
+                </div>
+                <div class="stat-icon rose">
+                    <i class="bi bi-alarm-fill"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Immediate return required</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-md-4">
+        <div class="stat-card border-warning">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label text-dark">Estimated Pending Fines</span>
+                    <div class="stat-value text-dark">{{ currency }}{{ "%.2f"|format(total_projected_fines) }}</div>
+                </div>
+                <div class="stat-icon amber">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Calculated at {{ currency }}{{ "%.2f"|format(fine_rate) }}/day overdue</small>
+        </div>
+    </div>
+
+    <div class="col-sm-12 col-md-4">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">System Fine Policy</span>
+                    <div class="stat-value fs-4 text-navy">{{ currency }}{{ "%.2f"|format(fine_rate) }} / day</div>
+                </div>
+                <div class="stat-icon teal">
+                    <i class="bi bi-gear"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Configured in system settings</small>
+        </div>
+    </div>
+</div>
+
+<!-- Overdue Loans Table -->
+<div class="card card-custom">
+    <div class="card-header-custom">
+        <div class="card-title-custom text-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>Active Overdue Loans ({{ overdue_loans|length }})</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if overdue_loans %}
+        <div class="table-responsive">
+            <table class="table table-custom table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Txn ID</th>
+                        <th>Book Information</th>
+                        <th>Member Details</th>
+                        <th>Contact</th>
+                        <th>Due Date</th>
+                        <th class="text-center">Overdue</th>
+                        <th>Accrued Fine</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in overdue_loans %}
+                    {% set days = loan.overdue_days %}
+                    {% set fine = loan.calculate_projected_fine(fine_rate) %}
+                    <tr>
+                        <td>
+                            <span class="fw-semibold font-monospace small text-dark">{{ loan.transaction_id }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('books.view', book_id=loan.book_id) }}" class="fw-bold text-navy text-decoration-none">
+                                {{ loan.book.title }}
+                            </a>
+                            <div class="text-muted small">Shelf: {{ loan.book.shelf_location or 'General' }}</div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('members.view', member_id=loan.member_id) }}" class="fw-semibold text-navy text-decoration-none">
+                                {{ loan.member.full_name }}
+                            </a>
+                            <div class="text-muted small">{{ loan.member.member_id }} &bull; {{ loan.member.department }}</div>
+                        </td>
+                        <td>
+                            <div class="small"><i class="bi bi-envelope text-muted me-1"></i>{{ loan.member.email }}</div>
+                            {% if loan.member.phone %}
+                            <div class="small text-muted"><i class="bi bi-telephone text-muted me-1"></i>{{ loan.member.phone }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-muted small">{{ loan.due_date.strftime('%Y-%m-%d') }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-danger rounded-pill px-3 py-1">
+                                {{ days }} day{{ 's' if days > 1 else '' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold text-danger">{{ currency }}{{ "%.2f"|format(fine) }}</span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('transactions.return_book', loan_id=loan.id) }}" class="btn btn-sm btn-teal d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-box-arrow-in-left"></i> Settle Return
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon text-success"><i class="bi bi-shield-check"></i></div>
+            <h5 class="fw-bold text-navy">All Books Returned on Time!</h5>
+            <p class="text-secondary small mb-0">There are currently no overdue book loans in the library system.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

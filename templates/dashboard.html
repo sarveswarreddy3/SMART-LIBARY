@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-navy mb-1">Library Operations Dashboard</h3>
+        <p class="text-secondary small mb-0">Real-time circulation metrics, inventory status, and borrowing intelligence.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('transactions.issue') }}" class="btn btn-teal d-flex align-items-center gap-2">
+            <i class="bi bi-box-arrow-up-right"></i>
+            <span>Issue Book</span>
+        </a>
+        <a href="{{ url_for('transactions.return_book') }}" class="btn btn-outline-navy d-flex align-items-center gap-2">
+            <i class="bi bi-box-arrow-in-left"></i>
+            <span>Return Book</span>
+        </a>
+        <a href="{{ url_for('books.add') }}" class="btn btn-navy d-flex align-items-center gap-2">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Book</span>
+        </a>
+    </div>
+</div>
+
+<!-- Key Stat Cards -->
+<div class="row g-3 mb-4">
+    <!-- Total Titles -->
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Total Titles</span>
+                    <div class="stat-value">{{ kpis.total_titles }}</div>
+                </div>
+                <div class="stat-icon navy">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">
+                <i class="bi bi-layers me-1"></i> Unique book entries
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Copies / Inventory -->
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Total Copies</span>
+                    <div class="stat-value">{{ kpis.total_copies }}</div>
+                </div>
+                <div class="stat-icon blue">
+                    <i class="bi bi-bookshelf"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">
+                <span class="text-success fw-semibold">{{ kpis.available_copies }}</span> available &bull; <span class="text-primary fw-semibold">{{ kpis.issued_copies }}</span> issued
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Loans -->
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Active Loans</span>
+                    <div class="stat-value">{{ kpis.active_loans }}</div>
+                </div>
+                <div class="stat-icon teal">
+                    <i class="bi bi-arrow-repeat"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">
+                <i class="bi bi-percent me-1"></i> {{ kpis.utilization_rate }}% circulation rate
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Loans -->
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Overdue Loans</span>
+                    <div class="stat-value {% if kpis.overdue_loans > 0 %}text-danger{% endif %}">{{ kpis.overdue_loans }}</div>
+                </div>
+                <div class="stat-icon rose">
+                    <i class="bi bi-alarm"></i>
+                </div>
+            </div>
+            <div class="small mt-2">
+                {% if kpis.overdue_loans > 0 %}
+                <a href="{{ url_for('transactions.overdue') }}" class="text-danger fw-semibold text-decoration-none">
+                    View overdue list <i class="bi bi-arrow-right"></i>
+                </a>
+                {% else %}
+                <span class="text-success"><i class="bi bi-check-circle"></i> No overdue books</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Metrics -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Registered Members</span>
+                    <div class="stat-value">{{ kpis.total_members }}</div>
+                </div>
+                <div class="stat-icon navy">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">Students &amp; Faculty</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Available Copies</span>
+                    <div class="stat-value text-teal">{{ kpis.available_copies }}</div>
+                </div>
+                <div class="stat-icon teal">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">Ready on shelves</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Fines Collected</span>
+                    <div class="stat-value">{{ currency }}{{ "%.2f"|format(kpis.fines_collected) }}</div>
+                </div>
+                <div class="stat-icon amber">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">Settled overdue penalties</div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="stat-label">Pending Fines</span>
+                    <div class="stat-value text-secondary">{{ currency }}{{ "%.2f"|format(kpis.pending_fines) }}</div>
+                </div>
+                <div class="stat-icon amber">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">Projected on overdue loans</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-4">
+    <!-- Monthly Borrowing & Return Trends -->
+    <div class="col-lg-8">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-graph-up text-teal"></i>
+                    <span>Circulation Activity Trends</span>
+                </div>
+                <span class="badge bg-light text-secondary border">Last 6 Months</span>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 280px; position: relative;">
+                    <canvas id="circulationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Distribution -->
+    <div class="col-lg-4">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-pie-chart text-teal"></i>
+                    <span>Category Breakdown</span>
+                </div>
+            </div>
+            <div class="card-body p-4 d-flex align-items-center justify-content-center">
+                {% if categories.labels %}
+                <div style="height: 260px; width: 100%; position: relative;">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
+                    <span>No book categories found.</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lower Section: Most Borrowed Books & Recent Circulation -->
+<div class="row g-4">
+    <!-- Most Borrowed Books -->
+    <div class="col-lg-6">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-trophy text-amber"></i>
+                    <span>Most Borrowed Books</span>
+                </div>
+                <a href="{{ url_for('analytics.index') }}" class="btn btn-sm btn-link text-decoration-none">Full Analytics</a>
+            </div>
+            <div class="card-body p-0">
+                {% if top_books.titles %}
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Book Title</th>
+                                <th>Category</th>
+                                <th class="text-end">Times Borrowed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(top_books.titles|length) %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold text-navy">{{ top_books.full_titles[i] }}</div>
+                                    <small class="text-muted">by {{ top_books.authors[i] }}</small>
+                                </td>
+                                <td><span class="badge bg-light text-secondary border">{{ top_books.categories[i] }}</span></td>
+                                <td class="text-end fw-bold text-teal">
+                                    <span class="badge rounded-pill bg-teal text-white">{{ top_books.counts[i] }} loans</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">No circulation transactions recorded yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Circulation Activity -->
+    <div class="col-lg-6">
+        <div class="card-custom h-100 mb-0">
+            <div class="card-header-custom">
+                <ul class="nav nav-pills card-header-pills" id="recentTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active py-1 px-3 small fw-semibold" id="issued-tab" data-bs-toggle="pill" data-bs-target="#recent-issued" type="button">
+                            Recently Issued
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link py-1 px-3 small fw-semibold" id="returned-tab" data-bs-toggle="pill" data-bs-target="#recent-returned" type="button">
+                            Recently Returned
+                        </button>
+                    </li>
+                </ul>
+                <a href="{{ url_for('transactions.history') }}" class="btn btn-sm btn-link text-decoration-none">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="tab-content" id="recentTabsContent">
+                    <!-- Recently Issued Tab -->
+                    <div class="tab-pane fade show active" id="recent-issued" role="tabpanel">
+                        {% if recent_issued %}
+                        <div class="table-responsive">
+                            <table class="table table-custom table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Txn / Book</th>
+                                        <th>Member</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for loan in recent_issued %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold text-navy text-truncate" style="max-width: 190px;">{{ loan.book.title }}</div>
+                                            <small class="text-muted">{{ loan.transaction_id }}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ loan.member.full_name }}</div>
+                                            <small class="text-muted">{{ loan.member.member_id }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if loan.is_overdue %}bg-danger{% else %}bg-primary{% endif %}">
+                                                {{ loan.due_date.strftime('%b %d, %Y') }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-muted">No recently issued books.</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Recently Returned Tab -->
+                    <div class="tab-pane fade" id="recent-returned" role="tabpanel">
+                        {% if recent_returned %}
+                        <div class="table-responsive">
+                            <table class="table table-custom table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Txn / Book</th>
+                                        <th>Member</th>
+                                        <th>Returned On</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for loan in recent_returned %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold text-navy text-truncate" style="max-width: 190px;">{{ loan.book.title }}</div>
+                                            <small class="text-muted">{{ loan.transaction_id }}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ loan.member.full_name }}</div>
+                                            <small class="text-muted">{{ loan.member.member_id }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">
+                                                {{ loan.return_date.strftime('%b %d, %Y') if loan.return_date else 'Returned' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-muted">No recently returned books.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Circulation Trends Chart
+    const trendCtx = document.getElementById('circulationChart');
+    if (trendCtx) {
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: {{ trends.labels | tojson }},
+                datasets: [
+                    {
+                        label: 'Books Borrowed',
+                        data: {{ trends.borrowed | tojson }},
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#0d9488',
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Books Returned',
+                        data: {{ trends.returned | tojson }},
+                        borderColor: '#0f172a',
+                        backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#0f172a',
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: { family: 'Inter', size: 12 } } },
+                    tooltip: { padding: 10, cornerRadius: 8 }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#64748b', font: { family: 'Inter', size: 11 } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Category Distribution Doughnut Chart
+    const catCtx = document.getElementById('categoryChart');
+    if (catCtx) {
+        new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ categories.labels | tojson }},
+                datasets: [{
+                    data: {{ categories.copy_counts | tojson }},
+                    backgroundColor: [
+                        '#0f172a', '#0d9488', '#2563eb', '#06b6d4', '#f59e0b',
+                        '#8b5cf6', '#ec4899', '#10b981', '#64748b'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 10, font: { family: 'Inter', size: 11 }, padding: 12 }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

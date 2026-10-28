@@ -1,0 +1,112 @@
+{#
+  chatbot_widget.html
+  Included at the bottom of base.html (inside authenticated block).
+  Contains the floating button and chat window markup only.
+  All text is rendered safely — no user-controlled content ever goes into
+  the template; dynamic content is inserted by chatbot.js via textContent.
+#}
+{% if current_user.is_authenticated %}
+
+<!-- ── Chatbot CSS ── -->
+<link href="{{ url_for('static', filename='css/chatbot.css') }}" rel="stylesheet">
+
+<!-- ── Floating toggle button ── -->
+<button
+    id="chatbot-toggle-btn"
+    type="button"
+    aria-label="Open Library Assistant"
+    aria-expanded="false"
+    aria-controls="chatbot-window"
+    title="Library Assistant"
+>
+    <i class="cb-icon bi bi-chat-dots-fill"></i>
+    <span id="chatbot-unread-badge" aria-hidden="true"></span>
+</button>
+
+<!-- ── Chat window ── -->
+<div
+    id="chatbot-window"
+    role="dialog"
+    aria-modal="false"
+    aria-labelledby="cb-title"
+>
+    <!-- Header -->
+    <div class="cb-header">
+        <div class="cb-header-icon" aria-hidden="true">
+            <i class="bi bi-robot"></i>
+        </div>
+        <div class="cb-header-info">
+            <p class="cb-header-title" id="cb-title">Library Assistant</p>
+            <p class="cb-header-sub">Search our book catalog in natural language</p>
+        </div>
+        <div class="cb-header-actions">
+            <span class="cb-ai-badge" id="cb-ai-badge" title="AI-powered search active" style="display:none;">
+                <i class="bi bi-stars"></i> AI
+            </span>
+            <button
+                class="cb-icon-btn"
+                id="chatbot-close-btn"
+                type="button"
+                aria-label="Close Library Assistant"
+                onclick="document.getElementById('chatbot-toggle-btn').click()"
+            >
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Messages area -->
+    <div class="cb-messages" id="chatbot-messages" role="log" aria-live="polite" aria-label="Chat messages">
+        <!-- Empty state (shown before first message; removed by JS) -->
+        <div class="cb-empty-state">
+            <div class="cb-empty-icon"><i class="bi bi-book-half"></i></div>
+            <p>Ask about any book in our library — title, author, category, or ISBN.</p>
+        </div>
+    </div>
+
+    <!-- Suggested questions -->
+    <div class="cb-suggestions" id="chatbot-suggestions" aria-label="Suggested questions">
+        <!-- Populated by chatbot.js -->
+    </div>
+
+    <!-- Input row -->
+    <div class="cb-input-area">
+        <textarea
+            id="chatbot-input"
+            rows="1"
+            placeholder="Ask about a book…"
+            aria-label="Message input"
+            maxlength="500"
+            autocomplete="off"
+            spellcheck="true"
+        ></textarea>
+        <button
+            id="chatbot-send-btn"
+            type="button"
+            aria-label="Send message"
+            title="Send (Enter)"
+        >
+            <i class="bi bi-send-fill"></i>
+        </button>
+    </div>
+</div>
+
+<!-- ── Chatbot JS (loaded after Bootstrap and main.js) ── -->
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+
+<script>
+/* Show AI badge if the backend reports it's enabled */
+(async function(){
+    try {
+        const r = await fetch('/api/chat/status');
+        if (r.ok) {
+            const d = await r.json();
+            if (d.ai_enabled) {
+                document.getElementById('cb-ai-badge').style.display = 'inline-flex';
+            }
+        }
+    } catch(_){}
+})();
+</script>
+
+{% endif %}

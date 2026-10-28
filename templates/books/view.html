@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}{{ book.title }} - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('books.index') }}" class="btn btn-sm btn-outline-secondary mb-2">
+        <i class="bi bi-arrow-left me-1"></i> Back to Books Catalog
+    </a>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+        <div>
+            <h3 class="fw-bold text-navy mb-1">{{ book.title }}</h3>
+            <span class="badge bg-light text-secondary border me-2">{{ book.category }}</span>
+            <span class="text-muted small">Added on {{ book.created_at.strftime('%B %d, %Y') if book.created_at else 'N/A' }}</span>
+        </div>
+        <div class="d-flex gap-2">
+            {% if book.available_copies > 0 %}
+            <a href="{{ url_for('transactions.issue', book_id=book.id) }}" class="btn btn-teal d-flex align-items-center gap-1">
+                <i class="bi bi-box-arrow-up-right"></i> Issue Copy
+            </a>
+            {% endif %}
+            <a href="{{ url_for('books.edit', book_id=book.id) }}" class="btn btn-outline-navy d-flex align-items-center gap-1">
+                <i class="bi bi-pencil"></i> Edit Details
+            </a>
+            {% if current_user.is_admin %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBookModal">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Book Details Card -->
+<div class="row g-4 mb-4">
+    <!-- Cover & Key Specs -->
+    <div class="col-md-4 col-lg-3 text-center">
+        <div class="card card-custom p-3">
+            <div class="d-flex justify-content-center mb-3">
+                {% if book.cover_image %}
+                <img src="{{ url_for('static', filename='uploads/covers/' + book.cover_image) }}" alt="Cover" class="book-cover-large" onerror="this.src='{{ url_for('static', filename='images/default-cover.svg') }}'">
+                {% else %}
+                <img src="{{ url_for('static', filename='images/default-cover.svg') }}" alt="Default Cover" class="book-cover-large">
+                {% endif %}
+            </div>
+            
+            <div class="p-3 bg-light rounded-3 text-start mb-2 border">
+                <div class="small text-muted mb-1">Inventory Breakdown</div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-semibold">Total Stock:</span>
+                    <span class="fw-bold text-navy">{{ book.total_copies }} copies</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-semibold">Available:</span>
+                    <span class="fw-bold text-teal">{{ book.available_copies }} copies</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold">Issued Out:</span>
+                    <span class="fw-bold text-primary">{{ book.issued_copies }} copies</span>
+                </div>
+            </div>
+
+            <div>
+                {% if book.available_copies > 0 %}
+                <span class="badge badge-status badge-available w-100 py-2"><i class="bi bi-check-circle me-1"></i> Available on Shelf</span>
+                {% else %}
+                <span class="badge badge-status badge-unavailable w-100 py-2"><i class="bi bi-x-circle me-1"></i> All Copies Issued</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Book Information & Description -->
+    <div class="col-md-8 col-lg-9">
+        <div class="card card-custom mb-4">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="bi bi-info-circle text-teal"></i> Metadata & Specifications</div>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">Author</span>
+                        <span class="fw-semibold text-navy">{{ book.author }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">Category / Discipline</span>
+                        <span class="fw-semibold text-navy">{{ book.category }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">ISBN</span>
+                        <span class="fw-semibold text-navy">{{ book.isbn or 'N/A' }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">Publisher</span>
+                        <span class="fw-semibold text-navy">{{ book.publisher or 'N/A' }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">Publication Year</span>
+                        <span class="fw-semibold text-navy">{{ book.publication_year or 'N/A' }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <span class="text-muted small d-block">Shelf / Rack Location</span>
+                        <span class="badge bg-teal-subtle text-teal border px-3 py-1">
+                            <i class="bi bi-geo-alt me-1"></i>{{ book.shelf_location or 'General Stack' }}
+                        </span>
+                    </div>
+                    <div class="col-12 mt-3 pt-3 border-top">
+                        <span class="text-muted small d-block mb-1">Description / Overview</span>
+                        <p class="text-secondary mb-0" style="white-space: pre-line;">{{ book.description or 'No synopsis or description provided for this catalog entry.' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Currently Active Loans for this Book -->
+        <div class="card card-custom mb-4">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-arrow-repeat text-teal"></i>
+                    <span>Currently Active Loans ({{ active_loans|length }})</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if active_loans %}
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Transaction</th>
+                                <th>Member</th>
+                                <th>Issued On</th>
+                                <th>Due Date</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in active_loans %}
+                            <tr>
+                                <td><span class="fw-semibold">{{ loan.transaction_id }}</span></td>
+                                <td>
+                                    <a href="{{ url_for('members.view', member_id=loan.member_id) }}" class="fw-semibold text-navy text-decoration-none">
+                                        {{ loan.member.full_name }}
+                                    </a>
+                                    <small class="text-muted d-block">{{ loan.member.member_id }} &bull; {{ loan.member.department }}</small>
+                                </td>
+                                <td>{{ loan.issue_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <span class="badge {% if loan.is_overdue %}bg-danger{% else %}bg-primary{% endif %}">
+                                        {{ loan.due_date.strftime('%Y-%m-%d') }}
+                                        {% if loan.is_overdue %}({{ loan.overdue_days }}d overdue){% endif %}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('transactions.return_book', loan_id=loan.id) }}" class="btn btn-sm btn-outline-teal">
+                                        <i class="bi bi-box-arrow-in-left me-1"></i> Process Return
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">No copies of this book are currently on loan. All available copies are in the stacks.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Past Borrowing History -->
+        <div class="card card-custom">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-clock-history text-secondary"></i>
+                    <span>Historical Circulation Audit Trail</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if past_loans %}
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Transaction</th>
+                                <th>Member</th>
+                                <th>Issue Date</th>
+                                <th>Return Date</th>
+                                <th>Fine Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in past_loans %}
+                            <tr>
+                                <td>{{ loan.transaction_id }}</td>
+                                <td>{{ loan.member.full_name }}</td>
+                                <td>{{ loan.issue_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ loan.return_date.strftime('%Y-%m-%d') if loan.return_date else 'N/A' }}</td>
+                                <td>
+                                    {% if loan.fine_amount > 0 %}
+                                    <span class="badge {% if loan.fine_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                        ${{ "%.2f"|format(loan.fine_amount) }} ({% if loan.fine_paid %}Paid{% else %}Unpaid{% endif %})
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted small">None</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">No past loan transactions recorded for this title.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal (Admin Only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="deleteBookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title text-navy fw-bold">Confirm Book Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2">Are you sure you want to delete:</p>
+                <p class="fw-bold text-navy fs-6 mb-3">"{{ book.title }}"</p>
+                
+                {% if not can_delete %}
+                <div class="alert alert-danger py-2 px-3 small mb-0">
+                    <i class="bi bi-shield-x me-1"></i> <strong>Safe Deletion Restricted:</strong> {{ delete_reason }}
+                </div>
+                {% else %}
+                <div class="alert alert-warning py-2 px-3 small mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i> This book has no active loans or transaction records and can be safely deleted.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('books.delete', book_id=book.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" {% if not can_delete %}disabled{% endif %}>
+                        Confirm Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

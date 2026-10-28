@@ -1,0 +1,448 @@
+/* ==========================================================================
+   Smart Library Management and Book Analytics System - Main Stylesheet
+   Theme: Academic Navy Blue, Clean White, and Tech Teal
+   ========================================================================== */
+
+:root {
+    --primary-navy: #0f172a;
+    --navy-dark: #090d16;
+    --navy-surface: #1e293b;
+    --navy-border: #334155;
+    
+    --teal-primary: #0d9488;
+    --teal-light: #14b8a6;
+    --teal-glow: rgba(13, 148, 136, 0.15);
+    --teal-subtle: #f0fdfa;
+    
+    --accent-blue: #2563eb;
+    --accent-cyan: #06b6d4;
+    
+    --bg-main: #f8fafc;
+    --card-bg: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-color: #e2e8f0;
+    
+    --sidebar-width: 260px;
+    --topbar-height: 64px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6, .brand-font {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* ---------------- Layout & Sidebar ---------------- */
+#wrapper {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    min-height: 100vh;
+}
+
+#sidebar {
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
+    background-color: var(--primary-navy);
+    color: #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar.toggled {
+    margin-left: calc(-1 * var(--sidebar-width));
+}
+
+.sidebar-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--navy-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.brand-icon {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, var(--teal-light), var(--accent-cyan));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 1.25rem;
+    box-shadow: 0 0 15px rgba(20, 184, 166, 0.4);
+}
+
+.brand-text h5 {
+    color: #ffffff;
+    font-size: 1.05rem;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.brand-text small {
+    color: var(--teal-light);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.sidebar-menu {
+    padding: 1rem 0;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sidebar-heading {
+    padding: 0.75rem 1.5rem 0.25rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 1.5rem;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-link i {
+    font-size: 1.15rem;
+    margin-right: 0.85rem;
+    width: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.sidebar-link:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-link:hover i {
+    color: var(--teal-light);
+}
+
+.sidebar-link.active {
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(13, 148, 136, 0.2) 0%, rgba(13, 148, 136, 0.02) 100%);
+    border-left-color: var(--teal-light);
+}
+
+.sidebar-link.active i {
+    color: var(--teal-light);
+}
+
+.sidebar-link .badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    padding: 0.3em 0.6em;
+}
+
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--navy-border);
+    background-color: var(--navy-dark);
+}
+
+.user-profile-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.avatar-initials {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--teal-primary);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* ---------------- Main Content & Topbar ---------------- */
+#content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 100vh;
+}
+
+.topbar {
+    height: var(--topbar-height);
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+}
+
+.main-container {
+    padding: 1.75rem;
+    flex: 1;
+}
+
+/* ---------------- Cards & UI Components ---------------- */
+.stat-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-icon.navy { background-color: #e2e8f0; color: var(--primary-navy); }
+.stat-icon.teal { background-color: #ccfbf1; color: var(--teal-primary); }
+.stat-icon.blue { background-color: #dbeafe; color: var(--accent-blue); }
+.stat-icon.amber { background-color: #fef3c7; color: #d97706; }
+.stat-icon.rose { background-color: #ffe4e6; color: #e11d48; }
+
+.stat-value {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--primary-navy);
+    line-height: 1.2;
+    margin-top: 0.5rem;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.card-custom {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.card-header-custom {
+    padding: 1.2rem 1.5rem;
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title-custom {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-navy);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ---------------- Buttons & Form Controls ---------------- */
+.btn-navy {
+    background-color: var(--primary-navy);
+    color: #ffffff;
+    border: 1px solid var(--primary-navy);
+    font-weight: 500;
+}
+
+.btn-navy:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+.btn-teal {
+    background-color: var(--teal-primary);
+    color: #ffffff;
+    border: 1px solid var(--teal-primary);
+    font-weight: 500;
+}
+
+.btn-teal:hover {
+    background-color: #0f766e;
+    color: #ffffff;
+}
+
+.btn-outline-navy {
+    border-color: var(--primary-navy);
+    color: var(--primary-navy);
+}
+
+.btn-outline-navy:hover {
+    background-color: var(--primary-navy);
+    color: #ffffff;
+}
+
+.form-control, .form-select {
+    border-color: var(--border-color);
+    padding: 0.6rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-size: 0.92rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--teal-primary);
+    box-shadow: 0 0 0 3px var(--teal-glow);
+}
+
+/* ---------------- Modern Tables ---------------- */
+.table-custom {
+    margin-bottom: 0;
+}
+
+.table-custom th {
+    background-color: #f8fafc;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table-custom td {
+    padding: 0.9rem 1rem;
+    vertical-align: middle;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+/* ---------------- Badges ---------------- */
+.badge-status {
+    padding: 0.35rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border-radius: 20px;
+}
+
+.badge-issued {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-returned {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.badge-overdue {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-available {
+    background-color: #ccfbf1;
+    color: #0f766e;
+}
+
+.badge-unavailable {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+/* ---------------- Book Cover Previews ---------------- */
+.book-cover-thumbnail {
+    width: 48px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: #e2e8f0;
+}
+
+.book-cover-large {
+    width: 180px;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    background-color: #e2e8f0;
+}
+
+/* ---------------- Empty States ---------------- */
+.empty-state {
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 991.98px) {
+    #sidebar {
+        margin-left: calc(-1 * var(--sidebar-width));
+        position: fixed;
+        height: 100vh;
+    }
+    #sidebar.toggled {
+        margin-left: 0;
+    }
+    .main-container {
+        padding: 1rem;
+    }
+}

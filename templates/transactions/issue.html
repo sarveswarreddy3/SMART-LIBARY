@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Book - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <a href="{{ url_for('transactions.history') }}" class="btn btn-sm btn-outline-secondary mb-2">
+                    <i class="bi bi-arrow-left me-1"></i> Transaction History
+                </a>
+                <h3 class="fw-bold text-navy mb-0">Issue Book to Member</h3>
+            </div>
+            <a href="{{ url_for('transactions.return_book') }}" class="btn btn-outline-navy btn-sm">
+                <i class="bi bi-box-arrow-in-left me-1"></i> Go to Returns
+            </a>
+        </div>
+
+        <div class="row g-4">
+            <!-- Issue Form -->
+            <div class="col-md-7 col-lg-8">
+                <div class="card card-custom">
+                    <div class="card-header-custom">
+                        <div class="card-title-custom">
+                            <i class="bi bi-box-arrow-up-right text-teal"></i>
+                            <span>New Book Loan Transaction</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('transactions.issue') }}" novalidate>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <!-- Select Member -->
+                            <div class="mb-3">
+                                <label for="member_id" class="form-label small fw-semibold text-secondary">
+                                    Select Registered Member <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="member_id" name="member_id" required>
+                                    <option value="" disabled {% if not pre_member_id %}selected{% endif %}>Choose an active member...</option>
+                                    {% for m in members %}
+                                    <option value="{{ m.id }}" {% if pre_member_id == m.id %}selected{% endif %}>
+                                        {{ m.full_name }} ({{ m.member_id }} &bull; {{ m.department }}) [{{ m.active_loans_count }} active]
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text small">Only active members within borrowing quota are listed.</div>
+                            </div>
+
+                            <!-- Select Book -->
+                            <div class="mb-3">
+                                <label for="book_id" class="form-label small fw-semibold text-secondary">
+                                    Select Available Book <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="book_id" name="book_id" required>
+                                    <option value="" disabled {% if not pre_book_id %}selected{% endif %}>Choose an available title...</option>
+                                    {% for b in books %}
+                                    <option value="{{ b.id }}" {% if pre_book_id == b.id %}selected{% endif %}>
+                                        {{ b.title }} by {{ b.author }} [{{ b.available_copies }} copies avail &bull; {{ b.shelf_location or 'Rack A-1' }}]
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text small">Only titles with available shelf copies are displayed.</div>
+                            </div>
+
+                            <!-- Due Date -->
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label small fw-semibold text-secondary">
+                                    Due Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="due_date" name="due_date" value="{{ suggested_due_date }}" required>
+                                <div class="form-text small">Pre-filled with default duration of {{ default_days }} days from today.</div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="mb-4">
+                                <label for="notes" class="form-label small fw-semibold text-secondary">Notes / Remarks (Optional)</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="e.g. Special reference, thesis research, condition note..."></textarea>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-teal py-2 fw-semibold">
+                                    <i class="bi bi-check2-circle me-1"></i> Authorize &amp; Issue Book
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Policy & Rules Helper Card -->
+            <div class="col-md-5 col-lg-4">
+                <div class="card card-custom bg-light border">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-navy mb-3"><i class="bi bi-shield-check text-teal me-1"></i> Circulation Rules</h6>
+                        
+                        <div class="small text-secondary mb-3">
+                            <div class="fw-semibold text-dark mb-1">1. Atomic Inventory Guarantee</div>
+                            <p class="mb-0">Issuing a copy automatically decrements the book's shelf count by 1 and tracks transaction history.</p>
+                        </div>
+
+                        <div class="small text-secondary mb-3">
+                            <div class="fw-semibold text-dark mb-1">2. Single Copy Per Member</div>
+                            <p class="mb-0">Members cannot borrow multiple copies of the exact same title simultaneously.</p>
+                        </div>
+
+                        <div class="small text-secondary mb-3">
+                            <div class="fw-semibold text-dark mb-1">3. Borrowing Limit</div>
+                            <p class="mb-0">Borrowing is locked if a member reaches their maximum active loan allowance.</p>
+                        </div>
+
+                        <div class="small text-secondary">
+                            <div class="fw-semibold text-dark mb-1">4. Automatic Overdue Tracking</div>
+                            <p class="mb-0">Loans past their due date will automatically accumulate late fines and trigger visual alerts.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

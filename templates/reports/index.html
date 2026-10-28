@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Reports &amp; Exports - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-navy mb-1">Reports &amp; Data Exports Center</h3>
+        <p class="text-secondary small mb-0">Generate publication-quality PDF reports, formatted Excel spreadsheets, and raw CSV files.</p>
+    </div>
+</div>
+
+<!-- Global Filter Bar for Reports -->
+<div class="card card-custom mb-4">
+    <div class="card-body p-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-3">
+                <label class="small text-muted fw-semibold">From Date:</label>
+                <input type="date" class="form-control form-control-sm" id="report_start_date">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="small text-muted fw-semibold">To Date:</label>
+                <input type="date" class="form-control form-control-sm" id="report_end_date" value="{{ today }}">
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="small text-muted fw-semibold">Discipline / Category Filter:</label>
+                <select class="form-select form-select-sm" id="report_category">
+                    <option value="all">All Disciplines &amp; Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="resetFiltersBtn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Catalog Grid -->
+<div class="row g-4">
+    <!-- 1. Complete Book Inventory -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon navy" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-journal-bookmark"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Book Inventory</h5>
+                        <small class="text-muted">Complete Catalog</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Full catalog report with ISBNs, titles, authors, categories, shelf locations, total copies, and currently available counts.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="books" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="books" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="books" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Members Directory -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon teal" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Member Directory</h5>
+                        <small class="text-muted">Students &amp; Faculty</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Registered library patron roster with student/staff roll codes, contact phone numbers, departments, and active loan counts.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="members" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="members" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="members" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Active Issued Loans -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon blue" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Active Issued Loans</h5>
+                        <small class="text-muted">Circulating Titles</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Books currently in circulation outside the stacks, showing borrower info, issue dates, due dates, and remaining duration.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="issued_books" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="issued_books" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="issued_books" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Overdue Books & Fines -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100 border-danger">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon rose" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-alarm"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Overdue Books &amp; Fines</h5>
+                        <small class="text-danger fw-semibold">Action Required</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Loans past scheduled return dates with member contact details, elapsed days overdue, and accumulated fine penalties.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="overdue_books" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="overdue_books" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="overdue_books" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Returned Books Archive -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon teal" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-box-arrow-in-left"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Returned Books Log</h5>
+                        <small class="text-muted">Settled History</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Archived completed return events showing settlement dates, calculated late fines, and paid receipts.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="returned_books" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="returned_books" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="returned_books" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Complete Transaction Audit Trail -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="stat-icon amber" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-receipt-cutoff"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-navy mb-0">Transaction Audit Trail</h5>
+                        <small class="text-muted">Master Ledger</small>
+                    </div>
+                </div>
+                <p class="text-secondary small mb-4 flex-grow-1">
+                    Full historical ledger of all issuance, returns, renewals, and fine assessments with filterable timestamp ranges.
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger export-btn flex-fill" data-type="transactions" data-fmt="pdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn flex-fill" data-type="transactions" data-fmt="excel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                    </button>
+                    <button class="btn btn-sm btn-outline-navy export-btn flex-fill" data-type="transactions" data-fmt="csv">
+                        <i class="bi bi-filetype-csv me-1"></i> CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const exportButtons = document.querySelectorAll('.export-btn');
+    const startDateInput = document.getElementById('report_start_date');
+    const endDateInput = document.getElementById('report_end_date');
+    const categorySelect = document.getElementById('report_category');
+    const resetBtn = document.getElementById('resetFiltersBtn');
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            startDateInput.value = '';
+            endDateInput.value = '{{ today }}';
+            categorySelect.value = 'all';
+        });
+    }
+
+    exportButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const reportType = this.getAttribute('data-type');
+            const fmt = this.getAttribute('data-fmt');
+
+            const params = new URLSearchParams();
+            if (startDateInput.value) params.append('start_date', startDateInput.value);
+            if (endDateInput.value) params.append('end_date', endDateInput.value);
+            if (categorySelect.value && categorySelect.value !== 'all') params.append('category', categorySelect.value);
+
+            const exportUrl = `{{ url_for('reports.export', fmt='FORMAT', report_type='REPORT_TYPE') }}`
+                .replace('FORMAT', fmt)
+                .replace('REPORT_TYPE', reportType) + '?' + params.toString();
+
+            window.location.href = exportUrl;
+        });
+    });
+});
+</script>
+{% endblock %}

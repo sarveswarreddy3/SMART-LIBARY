@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold text-navy mb-1">System Administration &amp; Settings</h3>
+    <p class="text-secondary small mb-0">Configure library loan policies, overdue penalty rates, and manage staff user credentials.</p>
+</div>
+
+<div class="row g-4">
+    <!-- Circulation Policies & Parameters -->
+    <div class="col-lg-6">
+        <div class="card card-custom h-100">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-sliders text-teal"></i>
+                    <span>Library Circulation Policies</span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('settings.index') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_settings">
+
+                    <div class="mb-3">
+                        <label for="library_name" class="form-label small fw-semibold text-secondary">Institution / Library Name</label>
+                        <input type="text" class="form-control" id="library_name" name="library_name" value="{{ settings.library_name }}" required>
+                        <div class="form-text small">Appears on headers, exports, and official PDF documents.</div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label for="default_loan_days" class="form-label small fw-semibold text-secondary">Default Loan Duration (Days)</label>
+                            <input type="number" class="form-control" id="default_loan_days" name="default_loan_days" value="{{ settings.default_loan_days }}" min="1" max="90" required>
+                            <div class="form-text small">Auto-calculated due date window.</div>
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label for="max_books_per_member" class="form-label small fw-semibold text-secondary">Borrowing Quota Per Member</label>
+                            <input type="number" class="form-control" id="max_books_per_member" name="max_books_per_member" value="{{ settings.max_books_per_member }}" min="1" max="20" required>
+                            <div class="form-text small">Maximum simultaneous active loans.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label for="fine_rate_per_day" class="form-label small fw-semibold text-secondary">Late Fine Rate (Per Day)</label>
+                            <input type="number" step="0.01" class="form-control" id="fine_rate_per_day" name="fine_rate_per_day" value="{{ "%.2f"|format(settings.fine_rate_per_day) }}" min="0" required>
+                            <div class="form-text small">Accrues daily when a loan is past due.</div>
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label for="currency_symbol" class="form-label small fw-semibold text-secondary">Currency Symbol</label>
+                            <input type="text" class="form-control" id="currency_symbol" name="currency_symbol" value="{{ settings.currency_symbol }}" maxlength="5" required>
+                            <div class="form-text small">e.g. $, ₹, £, €</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-navy fw-semibold py-2">
+                            <i class="bi bi-save me-1"></i> Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Accounts & Provisioning -->
+    <div class="col-lg-6">
+        <div class="card card-custom mb-4">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-person-plus text-teal"></i>
+                    <span>Create Staff Account</span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('settings.index') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create_user">
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-secondary">Username</label>
+                            <input type="text" class="form-control form-control-sm" name="username" placeholder="e.g. jdoe" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-secondary">Role</label>
+                            <select class="form-select form-select-sm" name="role" required>
+                                <option value="librarian">Librarian (Circulation)</option>
+                                <option value="admin">Administrator (Full Access)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-secondary">Full Name</label>
+                        <input type="text" class="form-control form-control-sm" name="full_name" placeholder="e.g. Jane Doe" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-secondary">Email</label>
+                            <input type="email" class="form-control form-control-sm" name="email" placeholder="e.g. jdoe@library.edu" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-secondary">Password</label>
+                            <input type="password" class="form-control form-control-sm" name="password" minlength="6" placeholder="Min 6 chars" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-teal btn-sm fw-semibold py-2">
+                            <i class="bi bi-person-check me-1"></i> Provision Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Staff List -->
+        <div class="card card-custom">
+            <div class="card-header-custom">
+                <div class="card-title-custom">
+                    <i class="bi bi-people text-secondary"></i>
+                    <span>Authorized Staff ({{ staff_users|length }})</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Staff Member</th>
+                                <th>Role</th>
+                                <th>Last Login</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for staff in staff_users %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold text-navy">{{ staff.full_name }}</div>
+                                    <small class="text-muted">{{ staff.username }} &bull; {{ staff.email }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if staff.is_admin %}bg-navy text-white{% else %}bg-secondary text-white{% endif %}">
+                                        {{ staff.role|capitalize }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="small text-muted">{{ staff.last_login.strftime('%Y-%m-%d %H:%M') if staff.last_login else 'Never' }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

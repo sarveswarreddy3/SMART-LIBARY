@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+        <div class="mb-4">
+            <h3 class="fw-bold text-navy mb-1">User Account Profile</h3>
+            <p class="text-secondary small mb-0">Manage your staff credentials, display information, and account password.</p>
+        </div>
+
+        <!-- User Information Card -->
+        <div class="card card-custom mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-initials" style="width: 60px; height: 60px; font-size: 1.6rem;">
+                        {{ user.full_name[:1].upper() }}
+                    </div>
+                    <div>
+                        <h4 class="fw-bold text-navy mb-1">{{ user.full_name }}</h4>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-navy text-white">{{ user.role|capitalize }}</span>
+                            <span class="text-muted small">Username: <code>{{ user.username }}</code></span> &bull;
+                            <span class="text-muted small">Active since {{ user.created_at.strftime('%b %Y') if user.created_at else 'N/A' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Edit Profile Form -->
+            <div class="col-md-6">
+                <div class="card card-custom h-100">
+                    <div class="card-header-custom">
+                        <div class="card-title-custom">
+                            <i class="bi bi-person-gear text-teal"></i>
+                            <span>Personal Information</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('profile.index') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="update_info">
+
+                            <div class="mb-3">
+                                <label for="username" class="form-label small fw-semibold text-secondary">Username</label>
+                                <input type="text" class="form-control bg-light" id="username" value="{{ user.username }}" readonly>
+                                <div class="form-text small">Usernames cannot be changed.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="full_name" class="form-label small fw-semibold text-secondary">Full Name</label>
+                                <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.full_name }}" required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="email" class="form-label small fw-semibold text-secondary">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-navy fw-semibold">
+                                    <i class="bi bi-check2-circle me-1"></i> Update Details
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password Form -->
+            <div class="col-md-6">
+                <div class="card card-custom h-100">
+                    <div class="card-header-custom">
+                        <div class="card-title-custom">
+                            <i class="bi bi-key text-teal"></i>
+                            <span>Change Password</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('profile.index') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="change_password">
+
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label small fw-semibold text-secondary">Current Password</label>
+                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label small fw-semibold text-secondary">New Password</label>
+                                <input type="password" class="form-control" id="new_password" name="new_password" minlength="6" required>
+                                <div class="form-text small">Minimum 6 characters.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="confirm_password" class="form-label small fw-semibold text-secondary">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="6" required>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-teal fw-semibold">
+                                    <i class="bi bi-shield-lock me-1"></i> Update Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
