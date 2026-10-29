@@ -9,13 +9,16 @@ def normalize_database_url(url: str | None) -> str | None:
     """
     Normalize database connection URL for SQLAlchemy 2.0+ compatibility.
     Cloud providers (e.g., Neon, Supabase, Render, Railway) frequently
-    provide postgres:// URLs; SQLAlchemy requires postgresql://.
+    provide postgres:// or postgresql:// URLs; SQLAlchemy 2.0 requires
+    specifying the driver (postgresql+psycopg2://) when psycopg2 is used.
     """
     if not url:
         return None
     url = url.strip()
     if url.startswith('postgres://'):
-        url = 'postgresql://' + url[len('postgres://'):]
+        return 'postgresql+psycopg2://' + url[len('postgres://'):]
+    if url.startswith('postgresql://'):
+        return 'postgresql+psycopg2://' + url[len('postgresql://'):]
     return url
 
 def is_serverless_environment() -> bool:

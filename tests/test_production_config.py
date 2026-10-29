@@ -6,17 +6,17 @@ from models.user import User
 from extensions import db
 
 def test_normalize_database_url():
-    """Verify postgres:// is rewritten to postgresql:// and postgresql:// is preserved."""
+    """Verify postgres:// and postgresql:// are rewritten to postgresql+psycopg2://."""
     assert normalize_database_url(None) is None
     assert normalize_database_url('') is None
-    assert normalize_database_url('postgres://user:pass@host:5432/db') == 'postgresql://user:pass@host:5432/db'
-    assert normalize_database_url('postgresql://user:pass@host:5432/db') == 'postgresql://user:pass@host:5432/db'
+    assert normalize_database_url('postgres://user:pass@host:5432/db') == 'postgresql+psycopg2://user:pass@host:5432/db'
+    assert normalize_database_url('postgresql://user:pass@host:5432/db') == 'postgresql+psycopg2://user:pass@host:5432/db'
 
 def test_database_uri_uses_postgres_when_set(monkeypatch):
     """Verify get_database_uri returns normalized PostgreSQL URL when DATABASE_URL is set."""
     monkeypatch.setenv('DATABASE_URL', 'postgres://testuser:testpass@localhost:5432/testdb')
     uri = get_database_uri()
-    assert uri == 'postgresql://testuser:testpass@localhost:5432/testdb'
+    assert uri == 'postgresql+psycopg2://testuser:testpass@localhost:5432/testdb'
 
 def test_database_uri_fallback_on_serverless(monkeypatch, tmp_path):
     """Verify get_database_uri uses /tmp/library.db fallback on serverless when DATABASE_URL is not set."""
