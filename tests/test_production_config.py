@@ -55,3 +55,38 @@ def test_admin_idempotence(app):
         assert existing_admin.password_hash == original_hash
         assert existing_admin.check_password('CustomSecret@456') is True
         assert existing_admin.check_password('Admin@123') is False
+
+def test_vercel_wsgi_middleware():
+    """Verify VercelWSGIMiddleware restores PATH_INFO from HTTP_X_MATCHED_PATH."""
+    from api.index import VercelWSGIMiddleware
+
+    def dummy_app(environ, start_response):
+        start_response('200 OK', [('Content-Type', 'text/plain')])
+        return [b'OK']
+
+    middleware = VercelWSGIMiddleware(dummy_app)
+
+    # Test 1: /login request rewritten by Vercel to /api/index
+    env1 = {
+        'PATH_INFO': '/api/index',
+        'HTTP_X_MATCHED_PATH': '/login'
+    }
+    middleware(env1, lambda s, h: None)
+    assert env1['PATH_INFO'] == '/login'
+    assert env1['SCRIPT_NAME'] == ''
+
+    # Test 2: static file request rewritten by Vercel to /api/index
+    env2 = {
+        'PATH_INFO': '/api/index',
+        'HTTP_X_MATCHED_PATH': '/static/css/style.css'
+    }
+    middleware(env2, lambda s, h: None)
+    assert env2['PATH_INFO'] == '/static/css/style.css'
+
+    # Test 3: URL with query parameters
+    env3 = {
+        'PATH_INFO': '/api/index',
+        'HTTP_X_MATCHED_PATH': '/books?search=python'
+    }
+    middleware(env3, lambda s, h: None)
+    assert env3['PATH_INFO'] == '/books'

@@ -89,6 +89,11 @@ def create_app(config_name=None):
             'current_year': date.today().year
         }
 
+    # Vercel entrypoint direct request fallback
+    @app.route('/api/index')
+    def vercel_entry_fallback():
+        return redirect(url_for('auth.login'))
+
     # Diagnostic Health Check Endpoint
     @app.route('/api/health-check')
     def health_check():
