@@ -90,3 +90,23 @@ def test_vercel_wsgi_middleware():
     }
     middleware(env3, lambda s, h: None)
     assert env3['PATH_INFO'] == '/books'
+
+    # Test 4: Rewrite with __path in QUERY_STRING
+    env4 = {
+        'PATH_INFO': '/api/index',
+        'QUERY_STRING': '__path=/login'
+    }
+    middleware(env4, lambda s, h: None)
+    assert env4['PATH_INFO'] == '/login'
+    assert env4['QUERY_STRING'] == ''
+
+    # Test 5: Rewrite with __path and preserved user query parameters
+    env5 = {
+        'PATH_INFO': '/api/index',
+        'QUERY_STRING': '__path=/books&category=Programming&sort=title'
+    }
+    middleware(env5, lambda s, h: None)
+    assert env5['PATH_INFO'] == '/books'
+    assert 'category=Programming' in env5['QUERY_STRING']
+    assert '__path' not in env5['QUERY_STRING']
+

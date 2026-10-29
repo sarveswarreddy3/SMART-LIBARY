@@ -26,9 +26,22 @@ try:
             self.wsgi_app = wsgi_app
 
         def __call__(self, environ, start_response):
-            matched_path = environ.get('HTTP_X_MATCHED_PATH') or environ.get('HTTP_X_FORWARDED_URI')
+            query = environ.get('QUERY_STRING', '')
+            matched_path = None
+            if '__path=' in query:
+                from urllib.parse import parse_qs, urlencode
+                qs = parse_qs(query, keep_blank_values=True)
+                if '__path' in qs:
+                    matched_path = qs.pop('__path')[0]
+                    environ['QUERY_STRING'] = urlencode(qs, doseq=True)
+
+            if not matched_path:
+                matched_path = environ.get('HTTP_X_MATCHED_PATH') or environ.get('HTTP_X_FORWARDED_URI')
+
             if matched_path:
                 pure_path = matched_path.split('?')[0]
+                if not pure_path.startswith('/'):
+                    pure_path = '/' + pure_path
                 if pure_path == '/api/index':
                     pure_path = '/'
                 environ['PATH_INFO'] = pure_path
