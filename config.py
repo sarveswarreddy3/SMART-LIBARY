@@ -19,12 +19,14 @@ def normalize_database_url(url: str | None) -> str | None:
     return url
 
 def is_serverless_environment() -> bool:
-    """Detect if running in serverless environment (Vercel, AWS Lambda)."""
+    """Detect if running in serverless environment (Vercel, AWS Lambda) or read-only filesystem."""
     return bool(
         os.environ.get('VERCEL') or
         os.environ.get('VERCEL_ENV') or
         os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or
-        os.environ.get('LAMBDA_TASK_ROOT')
+        os.environ.get('LAMBDA_TASK_ROOT') or
+        basedir.startswith('/var/task') or
+        (os.name != 'nt' and not os.access(basedir, os.W_OK))
     )
 
 def get_database_uri() -> str:
@@ -43,11 +45,15 @@ def get_database_uri() -> str:
     if is_serverless_environment():
         tmp_db = '/tmp/library.db'
         bundled_db = os.path.join(basedir, 'library.db')
-        if not os.path.exists(tmp_db) and os.path.exists(bundled_db):
-            try:
-                shutil.copy2(bundled_db, tmp_db)
-            except Exception:
-                pass
+        
+        try:
+            os.makedirs('/tmp', exist_ok=True)
+            if not os.path.exists(tmp_db) or os.path.getsize(tmp_db) == 0:
+                if os.path.exists(bundled_db):
+                    shutil.copy2(bundled_db, tmp_db)
+        except Exception:
+            pass
+
         if os.path.exists(tmp_db):
             return f'sqlite:///{tmp_db}'
 

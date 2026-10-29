@@ -13,8 +13,9 @@ def create_app(config_name=None):
         else:
             config_name = os.environ.get('FLASK_ENV', 'development')
 
+    from config import is_serverless_environment
     # Ensure an absolute, writable instance path across Linux, Windows, and Vercel serverless
-    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+    if is_serverless_environment():
         instance_path = '/tmp/instance'
     else:
         instance_path = os.path.join(tempfile.gettempdir(), 'smart_library_instance')
@@ -86,6 +87,39 @@ def create_app(config_name=None):
             'global_overdue_count': overdue_count,
             'global_active_loans_count': active_loans_count,
             'current_year': date.today().year
+        }
+
+    # Diagnostic Health Check Endpoint
+    @app.route('/api/health-check')
+    def health_check():
+        from models.user import User
+        from config import basedir, is_serverless_environment
+        try:
+            user_count = User.query.count()
+            admin = User.query.filter_by(username='admin').first()
+            admin_ok = admin is not None
+            admin_pass_ok = admin.check_password('Admin@123') if admin else False
+            librarian = User.query.filter_by(username='librarian').first()
+            lib_ok = librarian is not None
+            db_err = None
+        except Exception as e:
+            user_count = -1
+            admin_ok = False
+            admin_pass_ok = False
+            lib_ok = False
+            db_err = str(e)
+
+        return {
+            'status': 'ok',
+            'is_serverless': is_serverless_environment(),
+            'db_uri': app.config.get('SQLALCHEMY_DATABASE_URI'),
+            'bundled_db_exists': os.path.exists(os.path.join(basedir, 'library.db')),
+            'tmp_db_exists': os.path.exists('/tmp/library.db'),
+            'user_count': user_count,
+            'admin_exists': admin_ok,
+            'admin_pass_valid': admin_pass_ok,
+            'librarian_exists': lib_ok,
+            'db_error': db_err
         }
 
     # Error Handlers
