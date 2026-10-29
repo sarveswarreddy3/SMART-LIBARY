@@ -67,9 +67,8 @@ def migrate(source_sqlite_path, target_postgres_url):
     print("[*] Creating database schema in PostgreSQL if not already present...")
     from app import create_app
     app = create_app('testing')
-    app.config['SQLALCHEMY_DATABASE_URI'] = target_postgres_url
     with app.app_context():
-        db.create_all()
+        db.metadata.create_all(bind=pg_engine)
     print("[+] Database schema is ready.")
 
     total_migrated = {}
@@ -98,6 +97,16 @@ def migrate(source_sqlite_path, target_postgres_url):
             migrated_count = 0
             for row in source_rows:
                 row_dict = dict(row)
+                for col, val in row_dict.items():
+                    if col in ('is_active_account', 'fine_paid') and val is not None:
+                        row_dict[col] = bool(val)
+                    elif col in ('membership_date', 'issue_date', 'due_date', 'return_date') and val is not None:
+                        if isinstance(val, str) and len(val) == 10:
+                            from datetime import date as dt_date
+                            try:
+                                row_dict[col] = dt_date.fromisoformat(val)
+                            except ValueError:
+                                pass
                 pg_conn.execute(insert_stmt, row_dict)
                 migrated_count += 1
 

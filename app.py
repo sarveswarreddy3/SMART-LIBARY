@@ -110,10 +110,18 @@ def create_app(config_name=None):
             lib_ok = False
             db_err = str(e)
 
+        raw_uri = str(app.config.get('SQLALCHEMY_DATABASE_URI', ''))
+        if '@' in raw_uri:
+            creds, host_part = raw_uri.split('@', 1)
+            scheme = creds.split('://')[0]
+            masked_uri = f"{scheme}://****:****@{host_part}"
+        else:
+            masked_uri = raw_uri
+
         return {
             'status': 'ok',
             'is_serverless': is_serverless_environment(),
-            'db_uri': app.config.get('SQLALCHEMY_DATABASE_URI'),
+            'db_uri': masked_uri,
             'bundled_db_exists': os.path.exists(os.path.join(basedir, 'library.db')),
             'tmp_db_exists': os.path.exists('/tmp/library.db'),
             'user_count': user_count,
