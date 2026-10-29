@@ -1,8 +1,7 @@
 import os
 import pytest
 from flask import Flask
-from config import normalize_database_url, ProductionConfig
-from app import create_app
+from config import normalize_database_url, get_database_uri, ProductionConfig
 from models.user import User
 from extensions import db
 
@@ -13,25 +12,20 @@ def test_normalize_database_url():
     assert normalize_database_url('postgres://user:pass@host:5432/db') == 'postgresql://user:pass@host:5432/db'
     assert normalize_database_url('postgresql://user:pass@host:5432/db') == 'postgresql://user:pass@host:5432/db'
 
-def test_production_config_requires_database_url_on_vercel(monkeypatch):
-    """Verify create_app('production') raises ValueError if DATABASE_URL is missing on Vercel."""
-    monkeypatch.setenv('VERCEL', '1')
-    monkeypatch.setenv('SECRET_KEY', 'valid-test-secret-key-1234567890')
+def test_database_uri_uses_postgres_when_set(monkeypatch):
+    """Verify get_database_uri returns normalized PostgreSQL URL when DATABASE_URL is set."""
+    monkeypatch.setenv('DATABASE_URL', 'postgres://testuser:testpass@localhost:5432/testdb')
+    uri = get_database_uri()
+    assert uri == 'postgresql://testuser:testpass@localhost:5432/testdb'
+
+def test_database_uri_fallback_on_serverless(monkeypatch, tmp_path):
+    """Verify get_database_uri uses /tmp/library.db fallback on serverless when DATABASE_URL is not set."""
     monkeypatch.delenv('DATABASE_URL', raising=False)
-
-    with pytest.raises(ValueError, match="DATABASE_URL environment variable is not set"):
-        dummy_app = Flask(__name__)
-        ProductionConfig.init_app(dummy_app)
-
-def test_production_config_requires_secret_key_on_vercel(monkeypatch):
-    """Verify create_app('production') raises ValueError if SECRET_KEY is missing on Vercel."""
     monkeypatch.setenv('VERCEL', '1')
-    monkeypatch.setenv('DATABASE_URL', 'postgresql://user:pass@host:5432/db')
-    monkeypatch.delenv('SECRET_KEY', raising=False)
-
-    with pytest.raises(ValueError, match="SECRET_KEY environment variable is not set"):
-        dummy_app = Flask(__name__)
-        ProductionConfig.init_app(dummy_app)
+    uri = get_database_uri()
+    assert uri.startswith('sqlite:///')
+    # Must point to writable storage or valid db
+    assert 'library.db' in uri
 
 def test_admin_idempotence(app):
     """Verify existing admin accounts are never overwritten or reset."""

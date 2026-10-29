@@ -11,8 +11,8 @@ ENV/
 
 # Database & Uploads
 instance/
-*.db
 *.sqlite3
+library_backup.db
 static/uploads/covers/*
 !static/uploads/covers/.gitkeep
 

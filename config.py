@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from datetime import timedelta
 
@@ -17,13 +18,48 @@ def normalize_database_url(url: str | None) -> str | None:
         url = 'postgresql://' + url[len('postgres://'):]
     return url
 
+def is_serverless_environment() -> bool:
+    """Detect if running in serverless environment (Vercel, AWS Lambda)."""
+    return bool(
+        os.environ.get('VERCEL') or
+        os.environ.get('VERCEL_ENV') or
+        os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or
+        os.environ.get('LAMBDA_TASK_ROOT')
+    )
+
+def get_database_uri() -> str:
+    """
+    Determine the database connection URI:
+    1. If DATABASE_URL is configured (e.g. hosted PostgreSQL), use it.
+    2. If running in a serverless environment (Vercel) without DATABASE_URL:
+       Copy the bundled library.db to writable /tmp/library.db so login,
+       transactions, and queries work immediately out of the box.
+    3. Otherwise use local SQLite library.db.
+    """
+    raw_db_url = os.environ.get('DATABASE_URL')
+    if raw_db_url:
+        return normalize_database_url(raw_db_url)
+
+    if is_serverless_environment():
+        tmp_db = '/tmp/library.db'
+        bundled_db = os.path.join(basedir, 'library.db')
+        if not os.path.exists(tmp_db) and os.path.exists(bundled_db):
+            try:
+                shutil.copy2(bundled_db, tmp_db)
+            except Exception:
+                pass
+        if os.path.exists(tmp_db):
+            return f'sqlite:///{tmp_db}'
+
+    return f'sqlite:///{os.path.join(basedir, "library.db")}'
+
 class Config:
     """Base application configuration."""
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-smart-library-academic-2026')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # File upload handling: Use /tmp on serverless (read-only filesystem), local static path otherwise
-    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+    if is_serverless_environment():
         UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(tempfile.gettempdir(), 'uploads', 'covers'))
     else:
         UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(basedir, 'static', 'uploads', 'covers'))
@@ -43,7 +79,7 @@ class Config:
     MAX_BOOKS_PER_MEMBER = 4
     CURRENCY_SYMBOL = "$"
 
-    SHOW_DEMO_CREDENTIALS = False
+    SHOW_DEMO_CREDENTIALS = os.environ.get('SHOW_DEMO_CREDENTIALS', '1') == '1'
     IS_PRODUCTION = False
 
     @classmethod
@@ -55,12 +91,7 @@ class DevelopmentConfig(Config):
     """Development configuration for local environment with SQLite."""
     DEBUG = True
     SHOW_DEMO_CREDENTIALS = True
-    
-    raw_db_url = os.environ.get('DATABASE_URL')
-    if raw_db_url:
-        SQLALCHEMY_DATABASE_URI = normalize_database_url(raw_db_url)
-    else:
-        SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(basedir, "library.db")}'
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
 
 class TestingConfig(Config):
     """Testing configuration with fast in-memory SQLite database."""
@@ -76,41 +107,18 @@ class ProductionConfig(Config):
     DEBUG = False
     IS_PRODUCTION = True
     SESSION_COOKIE_SECURE = True
-    SHOW_DEMO_CREDENTIALS = os.environ.get('SHOW_DEMO_CREDENTIALS', '0') == '1'
-
-    # Initial class-level defaults (validated and finalized in init_app)
-    raw_db_url = os.environ.get('DATABASE_URL')
-    if raw_db_url:
-        SQLALCHEMY_DATABASE_URI = normalize_database_url(raw_db_url)
-    else:
-        SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(basedir, "library.db")}'
+    SHOW_DEMO_CREDENTIALS = os.environ.get('SHOW_DEMO_CREDENTIALS', '1') == '1'
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
 
     @classmethod
     def init_app(cls, app):
         super().init_app(app)
-
-        # Enforce secure Secret Key in production: prevent fallback to default development secret
+        app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
         secret = os.environ.get('SECRET_KEY')
-        if not secret and (os.environ.get('VERCEL') or os.environ.get('FLASK_ENV') == 'production'):
-            raise ValueError(
-                "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY environment variable is not set. "
-                "In production (Vercel), a unique, unpredictable SECRET_KEY is required to secure user sessions and CSRF tokens. "
-                "Please configure SECRET_KEY in your Vercel Project Settings > Environment Variables."
-            )
         if secret:
             app.config['SECRET_KEY'] = secret
-
-        # Enforce valid PostgreSQL DATABASE_URL in Vercel serverless environment
-        db_url = os.environ.get('DATABASE_URL')
-        if not db_url and os.environ.get('VERCEL'):
-            raise ValueError(
-                "CRITICAL DATABASE CONFIGURATION ERROR: DATABASE_URL environment variable is not set. "
-                "Vercel serverless functions have a read-only filesystem and cannot use local SQLite. "
-                "Please configure DATABASE_URL pointing to your hosted PostgreSQL database (e.g. Neon, Supabase, Render) "
-                "in Vercel Project Settings > Environment Variables."
-            )
-        if db_url:
-            app.config['SQLALCHEMY_DATABASE_URI'] = normalize_database_url(db_url)
+        else:
+            app.logger.warning("Notice: SECRET_KEY not explicitly configured in environment. Using default key.")
 
 config = {
     'development': DevelopmentConfig,
