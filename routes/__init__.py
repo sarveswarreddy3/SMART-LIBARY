@@ -7,6 +7,7 @@ from routes.analytics import analytics_bp
 from routes.reports import reports_bp
 from routes.profile import profile_bp
 from routes.settings import settings_bp
+from routes.uploads import uploads_bp
 
 __all__ = [
     'auth_bp',
@@ -17,5 +18,6 @@ __all__ = [
     'analytics_bp',
     'reports_bp',
     'profile_bp',
-    'settings_bp'
+    'settings_bp',
+    'uploads_bp'
 ]

@@ -78,7 +78,7 @@
                     <span>Transaction History</span>
                 </a>
 
-                <div class="sidebar-heading">Intelligence & Reports</div>
+                <div class="sidebar-heading">Intelligence & Documents</div>
                 <a href="{{ url_for('analytics.index') }}" class="sidebar-link {% if request.endpoint and request.endpoint.startswith('analytics.') %}active{% endif %}">
                     <i class="bi bi-pie-chart-fill"></i>
                     <span>Analytics Hub</span>
@@ -86,6 +86,10 @@
                 <a href="{{ url_for('reports.index') }}" class="sidebar-link {% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}">
                     <i class="bi bi-file-earmark-bar-graph-fill"></i>
                     <span>Reports & Exports</span>
+                </a>
+                <a href="{{ url_for('uploads.index') }}" class="sidebar-link {% if request.endpoint and request.endpoint.startswith('uploads.') %}active{% endif %}">
+                    <i class="bi bi-cloud-arrow-up-fill"></i>
+                    <span>Upload &amp; Import</span>
                 </a>
 
                 {% if current_user.is_admin %}

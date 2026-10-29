@@ -70,11 +70,20 @@ class Config:
     # File upload handling: Use /tmp on serverless (read-only filesystem), local static path otherwise
     if is_serverless_environment():
         UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(tempfile.gettempdir(), 'uploads', 'covers'))
+        DOCUMENTS_FOLDER = os.environ.get('DOCUMENTS_FOLDER', os.path.join(tempfile.gettempdir(), 'uploads', 'documents'))
     else:
         UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(basedir, 'static', 'uploads', 'covers'))
+        DOCUMENTS_FOLDER = os.environ.get('DOCUMENTS_FOLDER', os.path.join(basedir, 'uploads', 'documents'))
 
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
-    MAX_CONTENT_LENGTH = 2 * 1024 * 1024  # 2 MB max upload
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'}
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16 MB max upload
+    
+    # Cloud Object Storage (S3 / R2 / Supabase Storage)
+    S3_BUCKET = os.environ.get('S3_BUCKET')
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    S3_REGION = os.environ.get('S3_REGION', 'us-east-1')
+    S3_ENDPOINT_URL = os.environ.get('S3_ENDPOINT_URL')
     
     # Session security
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)

@@ -22,10 +22,11 @@ from models.user import User
 from models.setting import Setting
 from models.book import Book
 from models.member import Member
-from models.loan import Loan
+from models.document import Document
+from models.import_log import ImportLog
 from config import normalize_database_url
 
-TABLES_ORDER = ['users', 'settings', 'books', 'members', 'loans']
+TABLES_ORDER = ['users', 'settings', 'books', 'members', 'loans', 'documents', 'import_logs']
 
 def migrate(source_sqlite_path, target_postgres_url):
     print(f"[*] Starting migration...")

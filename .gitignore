@@ -15,6 +15,9 @@ instance/
 library_backup.db
 static/uploads/covers/*
 !static/uploads/covers/.gitkeep
+/uploads/*
+!/uploads/.gitkeep
+
 
 # Environment
 .env

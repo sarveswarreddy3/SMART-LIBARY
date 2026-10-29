@@ -29,6 +29,8 @@ def create_app(config_name=None):
     # Ensure upload directory exists safely without crashing if read-only
     try:
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        if app.config.get('DOCUMENTS_FOLDER'):
+            os.makedirs(app.config['DOCUMENTS_FOLDER'], exist_ok=True)
     except OSError as ex:
         app.logger.warning(f"Upload directory notice: {ex}")
 
@@ -48,6 +50,7 @@ def create_app(config_name=None):
     from routes.profile import profile_bp
     from routes.settings import settings_bp
     from routes.chatbot import chatbot_bp
+    from routes.uploads import uploads_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -59,6 +62,7 @@ def create_app(config_name=None):
     app.register_blueprint(profile_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(chatbot_bp)
+    app.register_blueprint(uploads_bp)
 
     # Global template context
     @app.context_processor

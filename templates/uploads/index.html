@@ -1,0 +1,905 @@
+{% extends "base.html" %}
+
+{% block title %}Upload &amp; Import Center - {{ library_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-navy mb-1">
+            <i class="bi bi-cloud-arrow-up-fill text-teal me-2"></i>Upload &amp; Import Center
+        </h3>
+        <p class="text-secondary small mb-0">Batch import catalog records from Excel/CSV and manage library documents (PDF, Word) with cloud persistence.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge {% if active_backend == 's3' %}bg-success-subtle text-success border border-success-subtle{% elif active_backend == 'database' %}bg-info-subtle text-info border border-info-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %} px-3 py-2">
+            <i class="bi bi-hdd-network me-1"></i>
+            Storage: <strong>{{ active_backend|upper }}</strong>
+        </span>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="uploadTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold d-flex align-items-center gap-2" id="import-tab" data-bs-toggle="pill" data-bs-target="#import-pane" type="button" role="tab">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+            <span>Data Import (Excel / CSV)</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold d-flex align-items-center gap-2" id="documents-tab" data-bs-toggle="pill" data-bs-target="#documents-pane" type="button" role="tab">
+            <i class="bi bi-folder-fill"></i>
+            <span>Library Documents (PDF &amp; Word)</span>
+            <span class="badge bg-secondary rounded-pill ms-1">{{ documents|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold d-flex align-items-center gap-2" id="history-tab" data-bs-toggle="pill" data-bs-target="#history-pane" type="button" role="tab">
+            <i class="bi bi-clock-history"></i>
+            <span>Import History</span>
+            <span class="badge bg-secondary rounded-pill ms-1">{{ import_logs|length }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="uploadTabContent">
+    <!-- ========================================================================= -->
+    <!-- TAB 1: BATCH DATA IMPORT (EXCEL / CSV)                                    -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane fade show active" id="import-pane" role="tabpanel">
+        <div class="row g-4">
+            <!-- Left: Upload Zone & Entity Selection -->
+            <div class="col-lg-5">
+                <div class="card card-custom h-100">
+                    <div class="card-header-custom">
+                        <h5 class="card-title-custom">
+                            <i class="bi bi-upload text-teal"></i> Step 1: Select Entity &amp; File
+                        </h5>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column">
+                        <!-- Entity Target -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Target Dataset Entity</label>
+                            <select class="form-select" id="targetEntitySelect">
+                                <option value="books" selected>Books Catalog (Title, Author, ISBN, Copies...)</option>
+                                <option value="members">Members Directory (ID, Name, Email, Dept...)</option>
+                                <option value="transactions">Circulation Loans (Book, Member, Dates, Status...)</option>
+                            </select>
+                        </div>
+
+                        <!-- Sample CSV Template Downloads -->
+                        <div class="p-3 bg-light rounded-3 border mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="fw-semibold small text-navy d-block">Sample Templates</span>
+                                    <span class="small text-muted" style="font-size: 0.75rem;">Download formatted CSV schema:</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('uploads.download_template', entity_type='books') }}" class="btn btn-outline-teal">Books</a>
+                                    <a href="{{ url_for('uploads.download_template', entity_type='members') }}" class="btn btn-outline-teal">Members</a>
+                                    <a href="{{ url_for('uploads.download_template', entity_type='transactions') }}" class="btn btn-outline-teal">Loans</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Drag and Drop Dropzone -->
+                        <div class="dropzone-area p-4 border border-2 border-dashed rounded-3 text-center mb-3 bg-light" id="importDropzone" style="cursor: pointer; transition: all 0.2s ease;">
+                            <input type="file" id="tabularFileInput" class="d-none" accept=".xlsx,.xls,.csv">
+                            <div class="mb-2">
+                                <i class="bi bi-file-earmark-excel text-teal" style="font-size: 2.75rem;"></i>
+                            </div>
+                            <h6 class="fw-bold text-navy mb-1" id="dropzoneTitle">Drag &amp; Drop your Excel or CSV file here</h6>
+                            <p class="text-muted small mb-2">Supported formats: <strong>.xlsx, .xls, .csv</strong> (Max 16 MB)</p>
+                            <button type="button" class="btn btn-sm btn-outline-navy px-3" onclick="document.getElementById('tabularFileInput').click();">
+                                <i class="bi bi-folder2-open me-1"></i> Browse Files
+                            </button>
+                        </div>
+
+                        <!-- Selected File Info Banner -->
+                        <div id="selectedFileInfo" class="p-3 bg-teal-subtle rounded-3 border border-teal-subtle d-none mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2 text-truncate">
+                                    <i class="bi bi-check-circle-fill text-teal fs-5"></i>
+                                    <div class="text-truncate">
+                                        <div class="fw-semibold small text-navy text-truncate" id="fileNameDisplay"></div>
+                                        <div class="text-muted small" id="fileSizeDisplay" style="font-size: 0.75rem;"></div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close btn-sm" id="clearSelectedFileBtn" aria-label="Remove"></button>
+                            </div>
+                        </div>
+
+                        <!-- Duplicate Handling Strategy -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-secondary">Duplicate Record Handling</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="duplicateStrategy" id="dupSkip" value="skip" checked>
+                                <label class="form-check-label small" for="dupSkip">
+                                    <strong>Skip duplicates</strong> &bull; Non-conflicting records are imported; duplicates reported in summary.
+                                </label>
+                            </div>
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="radio" name="duplicateStrategy" id="dupAbort" value="abort">
+                                <label class="form-check-label small" for="dupAbort">
+                                    <strong>Abort on duplicate (Safe Rollback)</strong> &bull; Reverts entire batch if any conflict is detected.
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Preview Action Button -->
+                        <div class="mt-auto pt-2">
+                            <button type="button" class="btn btn-teal w-100 py-2 fw-semibold" id="parsePreviewBtn" disabled>
+                                <span class="spinner-border spinner-border-sm me-2 d-none" id="previewSpinner" role="status"></span>
+                                <i class="bi bi-eye-fill me-1" id="previewIcon"></i> Parse &amp; Preview File
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Column Mapping & Data Preview Section -->
+            <div class="col-lg-7">
+                <!-- Initial Placeholder / Empty State -->
+                <div class="card card-custom h-100" id="previewPlaceholderCard">
+                    <div class="card-body p-5 text-center d-flex flex-column justify-content-center align-items-center">
+                        <div class="stat-icon navy mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+                            <i class="bi bi-table"></i>
+                        </div>
+                        <h5 class="fw-bold text-navy mb-1">Interactive Data Preview &amp; Field Mapping</h5>
+                        <p class="text-secondary small mb-3" style="max-width: 420px;">
+                            Upload an Excel (.xlsx/.xls) or CSV file on the left. The system will inspect your headers, suggest mappings, and validate rows prior to database insertion.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 justify-content-center">
+                            <span class="badge bg-light text-secondary border px-3 py-2"><i class="bi bi-shield-check text-success me-1"></i>Safe Atomic Rollback</span>
+                            <span class="badge bg-light text-secondary border px-3 py-2"><i class="bi bi-magic text-teal me-1"></i>Auto Column Matching</span>
+                            <span class="badge bg-light text-secondary border px-3 py-2"><i class="bi bi-copy text-primary me-1"></i>Duplicate Detection</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Preview Card (Shown after file parsed) -->
+                <div class="card card-custom d-none" id="activePreviewCard">
+                    <div class="card-header-custom">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-diagram-3-fill text-teal"></i>
+                            <h5 class="card-title-custom mb-0">Step 2: Map Fields &amp; Confirm Import</h5>
+                        </div>
+                        <span class="badge bg-navy text-white px-3 py-2" id="previewRowCountBadge">0 Rows Found</span>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Column Mapping Form Grid -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-navy small text-uppercase mb-2">
+                                <i class="bi bi-link-45deg me-1"></i> Column Mapping
+                            </h6>
+                            <p class="text-muted small mb-3">Map columns from your file to the database fields. Required fields are highlighted in blue.</p>
+                            <div class="table-responsive border rounded-3 mb-2" style="max-height: 220px;">
+                                <table class="table table-sm table-custom align-middle mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>File Column Header</th>
+                                            <th>Target Database Field</th>
+                                            <th>Required</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="columnMappingTableBody">
+                                        <!-- Dynamically generated mapping rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Data Sample Preview -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="fw-bold text-navy small text-uppercase mb-0">
+                                    <i class="bi bi-search me-1"></i> First 5 Data Rows Preview
+                                </h6>
+                                <small class="text-muted">Inspect extracted values</small>
+                            </div>
+                            <div class="table-responsive border rounded-3" style="max-height: 200px;">
+                                <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.8rem;" id="samplePreviewTable">
+                                    <thead class="table-light sticky-top" id="samplePreviewThead">
+                                        <!-- Dynamically generated headers -->
+                                    </thead>
+                                    <tbody id="samplePreviewTbody">
+                                        <!-- Dynamically generated sample rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Execute Import Button -->
+                        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="cancelPreviewBtn">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                            <button type="button" class="btn btn-navy px-4 py-2 fw-semibold" id="executeImportBtn">
+                                <span class="spinner-border spinner-border-sm me-2 d-none" id="importSpinner" role="status"></span>
+                                <i class="bi bi-check2-circle me-1" id="importIcon"></i> Execute Database Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Result Summary Card (Shown after execution) -->
+                <div class="card card-custom d-none mt-4" id="importResultCard">
+                    <div class="card-header-custom">
+                        <h5 class="card-title-custom mb-0">
+                            <i class="bi bi-clipboard2-check-fill text-success"></i> Import Results &amp; Summary
+                        </h5>
+                        <span class="badge" id="importStatusPill">Completed</span>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Stats Grid -->
+                        <div class="row g-3 text-center mb-4">
+                            <div class="col-4">
+                                <div class="p-3 bg-success-subtle rounded-3 border border-success-subtle">
+                                    <div class="fs-4 fw-bold text-success" id="resSuccessfulCount">0</div>
+                                    <div class="small text-muted fw-semibold">Imported</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-3 bg-warning-subtle rounded-3 border border-warning-subtle">
+                                    <div class="fs-4 fw-bold text-warning" id="resSkippedCount">0</div>
+                                    <div class="small text-muted fw-semibold">Duplicates Skipped</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-3 bg-danger-subtle rounded-3 border border-danger-subtle">
+                                    <div class="fs-4 fw-bold text-danger" id="resFailedCount">0</div>
+                                    <div class="small text-muted fw-semibold">Errors / Failed</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Errors & Warnings Collapsible Table -->
+                        <div id="rowErrorsContainer" class="d-none">
+                            <h6 class="fw-bold text-navy small text-uppercase mb-2">Row Notices &amp; Validation Messages</h6>
+                            <div class="table-responsive border rounded-3 mb-3" style="max-height: 200px;">
+                                <table class="table table-sm table-custom mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th style="width: 80px;">Row #</th>
+                                            <th style="width: 100px;">Type</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rowErrorsTableBody">
+                                        <!-- Error items injected via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Post-Import Actions -->
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetImportWorkflow();">
+                                <i class="bi bi-arrow-repeat me-1"></i> Import Another File
+                            </button>
+                            <a href="{{ url_for('books.index') }}" class="btn btn-teal btn-sm" id="viewImportedEntitiesBtn">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> View Updated Records
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: LIBRARY DOCUMENTS (PDF & WORD)                                     -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane fade" id="documents-pane" role="tabpanel">
+        <div class="row g-4">
+            <!-- Upload Document Form -->
+            <div class="col-lg-4">
+                <div class="card card-custom">
+                    <div class="card-header-custom">
+                        <h5 class="card-title-custom">
+                            <i class="bi bi-file-earmark-arrow-up text-teal"></i> Upload Document
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('uploads.upload_document') }}" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="mb-3">
+                                <label for="doc_file" class="form-label small fw-semibold text-secondary">Document File (.pdf, .docx, .doc)</label>
+                                <input type="file" class="form-control" id="doc_file" name="file" accept=".pdf,.docx,.doc" required>
+                                <div class="form-text small">Max upload size: 16 MB. Authenticated access only.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="doc_title" class="form-label small fw-semibold text-secondary">Document Title</label>
+                                <input type="text" class="form-control" id="doc_title" name="title" placeholder="e.g. Library Borrowing Policy 2026">
+                                <div class="form-text small">Leave blank to use original filename.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="doc_category" class="form-label small fw-semibold text-secondary">Document Category</label>
+                                <select class="form-select" id="doc_category" name="file_category">
+                                    {% for cat in categories %}
+                                    <option value="{{ cat }}">{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="doc_desc" class="form-label small fw-semibold text-secondary">Description / Notes</label>
+                                <textarea class="form-control" id="doc_desc" name="description" rows="3" placeholder="Brief summary or administrative notes..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-navy w-100 py-2 fw-semibold">
+                                <i class="bi bi-cloud-arrow-up me-1"></i> Upload to Storage
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Table & Filter -->
+            <div class="col-lg-8">
+                <div class="card card-custom">
+                    <div class="card-header-custom">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-collection-fill text-teal"></i>
+                            <h5 class="card-title-custom mb-0">Managed Library Documents</h5>
+                        </div>
+                        <span class="badge bg-light text-dark border">{{ documents|length }} Document(s)</span>
+                    </div>
+
+                    <!-- Filter Bar -->
+                    <div class="p-3 border-bottom bg-light">
+                        <form method="GET" action="{{ url_for('uploads.index') }}" class="row g-2">
+                            <input type="hidden" name="_anchor" value="documents">
+                            <div class="col-md-7">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" name="q" placeholder="Search by title, filename, or description..." value="{{ search_query }}">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select form-select-sm" name="category" onchange="this.form.submit();">
+                                    <option value="">All Categories</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{{ url_for('uploads.index', _anchor='documents') }}" class="btn btn-outline-secondary btn-sm w-100">Reset</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card-body p-0">
+                        {% if documents %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-custom mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Category</th>
+                                        <th>Size</th>
+                                        <th>Uploaded By</th>
+                                        <th>Date</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc in documents %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi {{ doc.file_icon }} fs-4"></i>
+                                                <div class="text-truncate" style="max-width: 200px;">
+                                                    <div class="fw-semibold text-navy text-truncate" title="{{ doc.title }}">{{ doc.title }}</div>
+                                                    <small class="text-muted text-truncate d-block" style="font-size: 0.75rem;" title="{{ doc.original_filename }}">{{ doc.original_filename }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ doc.category_badge_class }}">{{ doc.file_category }}</span>
+                                        </td>
+                                        <td class="small text-secondary">{{ doc.file_size_formatted }}</td>
+                                        <td class="small text-secondary">{{ doc.uploaded_by.full_name if doc.uploaded_by else 'System' }}</td>
+                                        <td class="small text-muted">{{ doc.created_at.strftime('%Y-%m-%d') if doc.created_at else '' }}</td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('uploads.download_document', doc_id=doc.id) }}" class="btn btn-outline-teal" title="Download">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                                {% if doc.can_delete(current_user) %}
+                                                <button type="button" class="btn btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteDocModal{{ doc.id }}">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Delete Modal Confirmation -->
+                                            {% if doc.can_delete(current_user) %}
+                                            <div class="modal fade" id="deleteDocModal{{ doc.id }}" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered modal-sm text-start">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header border-0 pb-0">
+                                                            <h6 class="modal-title fw-bold text-navy">Confirm Deletion</h6>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <div class="modal-body small text-secondary">
+                                                            Are you sure you want to delete <strong>{{ doc.title }}</strong>? This will remove the file from storage.
+                                                        </div>
+                                                        <div class="modal-footer border-0 pt-0">
+                                                            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                            <form method="POST" action="{{ url_for('uploads.delete_document', doc_id=doc.id) }}" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-folder-x empty-state-icon text-muted"></i>
+                            <h6 class="fw-bold text-navy mb-1">No Documents Uploaded Yet</h6>
+                            <p class="text-muted small">Upload institutional policies, library guidelines, and syllabi (.pdf, .docx, .doc).</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: IMPORT HISTORY & AUDIT LOG                                         -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane fade" id="history-pane" role="tabpanel">
+        <div class="card card-custom">
+            <div class="card-header-custom">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-teal"></i>
+                    <h5 class="card-title-custom mb-0">Tabular Data Import Audit Log</h5>
+                </div>
+                <span class="badge bg-light text-dark border">{{ import_logs|length }} Import Record(s)</span>
+            </div>
+            <div class="card-body p-0">
+                {% if import_logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date / Time</th>
+                                <th>Entity Target</th>
+                                <th>File Name</th>
+                                <th>Total Rows</th>
+                                <th>Successful</th>
+                                <th>Duplicates Skipped</th>
+                                <th>Failed</th>
+                                <th>Status</th>
+                                <th>Operator</th>
+                                <th class="text-end">Log Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in import_logs %}
+                            <tr>
+                                <td class="small text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '' }}</td>
+                                <td>
+                                    <span class="badge bg-navy-subtle text-navy border text-uppercase" style="font-size: 0.7rem;">{{ log.target_entity }}</span>
+                                </td>
+                                <td class="fw-semibold small text-navy text-truncate" style="max-width: 180px;">{{ log.filename }}</td>
+                                <td class="small">{{ log.total_rows }}</td>
+                                <td class="small text-success fw-semibold">{{ log.successful_imports }}</td>
+                                <td class="small text-warning fw-semibold">{{ log.skipped_duplicates }}</td>
+                                <td class="small text-danger fw-semibold">{{ log.failed_rows }}</td>
+                                <td>
+                                    <span class="badge {{ log.status_badge_class }}">{{ log.status|capitalize }}</span>
+                                </td>
+                                <td class="small text-secondary">{{ log.imported_by.full_name if log.imported_by else 'System' }}</td>
+                                <td class="text-end">
+                                    {% if log.error_details %}
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#logModal{{ log.id }}">
+                                        <i class="bi bi-info-circle me-1"></i> View Log
+                                    </button>
+
+                                    <!-- Log Details Modal -->
+                                    <div class="modal fade" id="logModal{{ log.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered modal-lg text-start">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h6 class="modal-title fw-bold text-navy">
+                                                        <i class="bi bi-journal-text text-teal me-1"></i> Import Audit Details #{{ log.id }}
+                                                    </h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body p-0">
+                                                    <div class="table-responsive" style="max-height: 350px;">
+                                                        <table class="table table-sm table-custom mb-0">
+                                                            <thead class="table-light sticky-top">
+                                                                <tr>
+                                                                    <th style="width: 80px;">Row #</th>
+                                                                    <th style="width: 100px;">Status</th>
+                                                                    <th>Validation Details</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for err in log.error_details %}
+                                                                <tr>
+                                                                    <td class="small text-secondary">{{ err.row }}</td>
+                                                                    <td>
+                                                                        <span class="badge {% if err.status == 'skipped' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">
+                                                                            {{ err.status|upper }}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="small text-dark">{{ err.message }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted small">No errors</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-clock-history empty-state-icon text-muted"></i>
+                    <h6 class="fw-bold text-navy mb-1">No Past Import Audits</h6>
+                    <p class="text-muted small">Batch import logs and statistics will be displayed here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- JAVASCRIPT: PREVIEW & IMPORT WORKFLOW LOGIC                               -->
+<!-- ========================================================================= -->
+<script>
+    let currentPreviewData = null;
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Handle hash anchors on load (e.g. /uploads#documents)
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.location.hash) {
+            const triggerEl = document.querySelector(`button[data-bs-target="${window.location.hash}-pane"]`);
+            if (triggerEl) {
+                bootstrap.Tab.getOrCreateInstance(triggerEl).show();
+            }
+        }
+    });
+
+    // 1. Drag & Drop Zone Handlers
+    const dropzone = document.getElementById('importDropzone');
+    const fileInput = document.getElementById('tabularFileInput');
+    const parseBtn = document.getElementById('parsePreviewBtn');
+    const selectedInfo = document.getElementById('selectedFileInfo');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileSizeDisplay = document.getElementById('fileSizeDisplay');
+    const clearFileBtn = document.getElementById('clearSelectedFileBtn');
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('border-teal', 'bg-teal-subtle');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('border-teal', 'bg-teal-subtle');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length) {
+            fileInput.files = files;
+            handleFileSelection(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', function () {
+        if (this.files.length) {
+            handleFileSelection(this.files[0]);
+        }
+    });
+
+    function handleFileSelection(file) {
+        fileNameDisplay.textContent = file.name;
+        fileSizeDisplay.textContent = (file.size / 1024).toFixed(1) + ' KB';
+        selectedInfo.classList.remove('d-none');
+        dropzone.classList.add('d-none');
+        parseBtn.disabled = false;
+    }
+
+    clearFileBtn.addEventListener('click', function () {
+        fileInput.value = '';
+        selectedInfo.classList.add('d-none');
+        dropzone.classList.remove('d-none');
+        parseBtn.disabled = true;
+        resetImportWorkflow();
+    });
+
+    // 2. Parse & Preview Handler
+    parseBtn.addEventListener('click', function () {
+        if (!fileInput.files.length) return;
+
+        const file = fileInput.files[0];
+        const targetEntity = document.getElementById('targetEntitySelect').value;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('target_entity', targetEntity);
+
+        const previewSpinner = document.getElementById('previewSpinner');
+        const previewIcon = document.getElementById('previewIcon');
+        previewSpinner.classList.remove('d-none');
+        previewIcon.classList.add('d-none');
+        parseBtn.disabled = true;
+
+        fetch('{{ url_for("uploads.preview_tabular") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            previewSpinner.classList.add('d-none');
+            previewIcon.classList.remove('d-none');
+            parseBtn.disabled = false;
+
+            if (data.status === 'success') {
+                currentPreviewData = data.data;
+                renderPreview(data.data);
+            } else {
+                alert('Preview Error: ' + (data.message || 'Failed to parse file.'));
+            }
+        })
+        .catch(err => {
+            previewSpinner.classList.add('d-none');
+            previewIcon.classList.remove('d-none');
+            parseBtn.disabled = false;
+            alert('Request Error: ' + err.message);
+        });
+    });
+
+    function renderPreview(preview) {
+        document.getElementById('previewPlaceholderCard').classList.add('d-none');
+        document.getElementById('activePreviewCard').classList.remove('d-none');
+        document.getElementById('importResultCard').classList.add('d-none');
+        document.getElementById('previewRowCountBadge').textContent = `${preview.total_rows} Data Rows Found`;
+
+        // Render Column Mapping Table
+        const mappingTbody = document.getElementById('columnMappingTableBody');
+        mappingTbody.innerHTML = '';
+
+        const availableFields = preview.available_fields;
+
+        preview.headers.forEach(header => {
+            const suggestedField = preview.suggested_mappings[header] || '';
+            const tr = document.createElement('tr');
+
+            let optionsHtml = `<option value="">-- Ignore this column --</option>`;
+            availableFields.forEach(f => {
+                const isSelected = (f.name === suggestedField) ? 'selected' : '';
+                const reqLabel = f.required ? ' *' : '';
+                optionsHtml += `<option value="${f.name}" ${isSelected}>${f.label}${reqLabel}</option>`;
+            });
+
+            tr.innerHTML = `
+                <td class="fw-semibold text-navy small">${escapeHtml(header)}</td>
+                <td>
+                    <select class="form-select form-select-sm column-map-select" data-column="${escapeHtml(header)}">
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td class="small text-muted" id="reqBadge_${escapeHtml(header)}">
+                    ${suggestedField && availableFields.find(f => f.name === suggestedField)?.required ? '<span class="badge bg-primary">Required</span>' : '<span class="text-muted">Optional</span>'}
+                </td>
+            `;
+            mappingTbody.appendChild(tr);
+        });
+
+        // Listen for mapping changes to update badges
+        document.querySelectorAll('.column-map-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const colName = this.dataset.column;
+                const fieldName = this.value;
+                const reqCell = document.getElementById(`reqBadge_${colName}`);
+                const fieldDef = availableFields.find(f => f.name === fieldName);
+                if (fieldDef && fieldDef.required) {
+                    reqCell.innerHTML = '<span class="badge bg-primary">Required</span>';
+                } else if (fieldName) {
+                    reqCell.innerHTML = '<span class="text-muted">Optional</span>';
+                } else {
+                    reqCell.innerHTML = '<span class="text-secondary">-</span>';
+                }
+            });
+        });
+
+        // Render Sample Table
+        const thead = document.getElementById('samplePreviewThead');
+        const tbody = document.getElementById('samplePreviewTbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        let theadHtml = '<tr>';
+        preview.headers.forEach(h => {
+            theadHtml += `<th>${escapeHtml(h)}</th>`;
+        });
+        theadHtml += '</tr>';
+        thead.innerHTML = theadHtml;
+
+        preview.sample_rows.forEach(row => {
+            let rowHtml = '<tr>';
+            preview.headers.forEach(h => {
+                rowHtml += `<td>${escapeHtml(row[h] || '')}</td>`;
+            });
+            rowHtml += '</tr>';
+            tbody.innerHTML += rowHtml;
+        });
+    }
+
+    // 3. Cancel Preview Button
+    document.getElementById('cancelPreviewBtn').addEventListener('click', function () {
+        resetImportWorkflow();
+    });
+
+    function resetImportWorkflow() {
+        currentPreviewData = null;
+        document.getElementById('previewPlaceholderCard').classList.remove('d-none');
+        document.getElementById('activePreviewCard').classList.add('d-none');
+        document.getElementById('importResultCard').classList.add('d-none');
+    }
+
+    // 4. Execute Import Button
+    document.getElementById('executeImportBtn').addEventListener('click', function () {
+        if (!currentPreviewData) return;
+
+        // Build mapping dictionary: column_name -> field_name
+        const mapping = {};
+        document.querySelectorAll('.column-map-select').forEach(sel => {
+            mapping[sel.dataset.column] = sel.value;
+        });
+
+        const targetEntity = currentPreviewData.target_entity;
+        const duplicateStrategy = document.querySelector('input[name="duplicateStrategy"]:checked').value;
+        const previewToken = currentPreviewData.preview_token;
+
+        const importSpinner = document.getElementById('importSpinner');
+        const importIcon = document.getElementById('importIcon');
+        const executeBtn = document.getElementById('executeImportBtn');
+
+        importSpinner.classList.remove('d-none');
+        importIcon.classList.add('d-none');
+        executeBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('preview_token', previewToken);
+        formData.append('target_entity', targetEntity);
+        formData.append('duplicate_strategy', duplicateStrategy);
+        formData.append('column_mapping', JSON.stringify(mapping));
+
+        fetch('{{ url_for("uploads.execute_import") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            importSpinner.classList.add('d-none');
+            importIcon.classList.remove('d-none');
+            executeBtn.disabled = false;
+
+            if (data.status === 'success') {
+                renderImportResults(data.summary, targetEntity);
+            } else {
+                alert('Import Execution Error: ' + (data.message || 'Operation failed.'));
+            }
+        })
+        .catch(err => {
+            importSpinner.classList.add('d-none');
+            importIcon.classList.remove('d-none');
+            executeBtn.disabled = false;
+            alert('Request Error: ' + err.message);
+        });
+    });
+
+    function renderImportResults(summary, targetEntity) {
+        document.getElementById('activePreviewCard').classList.add('d-none');
+        const resCard = document.getElementById('importResultCard');
+        resCard.classList.remove('d-none');
+
+        document.getElementById('resSuccessfulCount').textContent = summary.successful_imports;
+        document.getElementById('resSkippedCount').textContent = summary.skipped_duplicates;
+        document.getElementById('resFailedCount').textContent = summary.failed_rows;
+
+        const statusPill = document.getElementById('importStatusPill');
+        if (summary.failed_rows === 0 && summary.successful_imports > 0) {
+            statusPill.className = 'badge bg-success-subtle text-success border border-success-subtle px-3 py-2';
+            statusPill.textContent = 'All Records Imported Successfully';
+        } else if (summary.successful_imports > 0) {
+            statusPill.className = 'badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2';
+            statusPill.textContent = 'Partial Import Completed';
+        } else {
+            statusPill.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2';
+            statusPill.textContent = 'Import Failed / Rolled Back';
+        }
+
+        // Configure view button link
+        const viewBtn = document.getElementById('viewImportedEntitiesBtn');
+        if (targetEntity === 'books') {
+            viewBtn.href = "{{ url_for('books.index') }}";
+            viewBtn.innerHTML = '<i class="bi bi-box-arrow-up-right me-1"></i> View Books Catalog';
+        } else if (targetEntity === 'members') {
+            viewBtn.href = "{{ url_for('members.index') }}";
+            viewBtn.innerHTML = '<i class="bi bi-box-arrow-up-right me-1"></i> View Members Directory';
+        } else {
+            viewBtn.href = "{{ url_for('transactions.history') }}";
+            viewBtn.innerHTML = '<i class="bi bi-box-arrow-up-right me-1"></i> View Loan Transactions';
+        }
+
+        // Render errors / skipped table if any
+        const errorsContainer = document.getElementById('rowErrorsContainer');
+        const errorsTbody = document.getElementById('rowErrorsTableBody');
+        errorsTbody.innerHTML = '';
+
+        if (summary.errors && summary.errors.length > 0) {
+            errorsContainer.classList.remove('d-none');
+            summary.errors.forEach(err => {
+                const tr = document.createElement('tr');
+                const badgeClass = (err.status === 'skipped') ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger';
+                tr.innerHTML = `
+                    <td class="small fw-semibold text-secondary">Row ${err.row}</td>
+                    <td><span class="badge ${badgeClass}">${err.status.toUpperCase()}</span></td>
+                    <td class="small text-dark">${escapeHtml(err.message)}</td>
+                `;
+                errorsTbody.appendChild(tr);
+            });
+        } else {
+            errorsContainer.classList.add('d-none');
+        }
+    }
+
+    function escapeHtml(string) {
+        if (!string) return '';
+        return String(string)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+</script>
+{% endblock %}
