@@ -27,9 +27,16 @@ class VercelWSGIMiddleware:
         if matched_path:
             # Strip query string if embedded in matched path
             pure_path = matched_path.split('?')[0]
+            if pure_path == '/api/index':
+                pure_path = '/'
             environ['PATH_INFO'] = pure_path
             environ['SCRIPT_NAME'] = ''
+        elif environ.get('PATH_INFO') == '/api/index':
+            environ['PATH_INFO'] = '/'
 
         return self.wsgi_app(environ, start_response)
 
-app = VercelWSGIMiddleware(flask_app)
+# Attach middleware directly to Flask wsgi_app so app remains an instance of Flask
+flask_app.wsgi_app = VercelWSGIMiddleware(flask_app.wsgi_app)
+app = flask_app
+

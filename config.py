@@ -43,19 +43,19 @@ def get_database_uri() -> str:
         return normalize_database_url(raw_db_url)
 
     if is_serverless_environment():
-        tmp_db = '/tmp/library.db'
-        bundled_db = os.path.join(basedir, 'library.db')
+        tmp_dir = tempfile.gettempdir()
+        tmp_db = os.path.abspath(os.path.join(tmp_dir, 'library.db'))
+        bundled_db = os.path.abspath(os.path.join(basedir, 'library.db'))
         
         try:
-            os.makedirs('/tmp', exist_ok=True)
+            os.makedirs(tmp_dir, exist_ok=True)
             if not os.path.exists(tmp_db) or os.path.getsize(tmp_db) == 0:
                 if os.path.exists(bundled_db):
                     shutil.copy2(bundled_db, tmp_db)
         except Exception:
             pass
 
-        if os.path.exists(tmp_db):
-            return f'sqlite:///{tmp_db}'
+        return f'sqlite:///{tmp_db}'
 
     return f'sqlite:///{os.path.join(basedir, "library.db")}'
 

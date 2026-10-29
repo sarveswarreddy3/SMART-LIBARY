@@ -1,7 +1,7 @@
 import os
 import tempfile
 from datetime import date
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, redirect, url_for
 from config import config
 from extensions import db, login_manager, csrf
 
@@ -13,12 +13,8 @@ def create_app(config_name=None):
         else:
             config_name = os.environ.get('FLASK_ENV', 'development')
 
-    from config import is_serverless_environment
     # Ensure an absolute, writable instance path across Linux, Windows, and Vercel serverless
-    if is_serverless_environment():
-        instance_path = '/tmp/instance'
-    else:
-        instance_path = os.path.join(tempfile.gettempdir(), 'smart_library_instance')
+    instance_path = os.path.abspath(os.path.join(tempfile.gettempdir(), 'smart_library_instance'))
     
     try:
         os.makedirs(instance_path, exist_ok=True)
