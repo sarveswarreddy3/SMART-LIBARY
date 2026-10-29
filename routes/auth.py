@@ -1,6 +1,6 @@
 from functools import wraps
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from models.user import User
@@ -23,6 +23,8 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
 
+    show_demo = current_app.config.get('SHOW_DEMO_CREDENTIALS', current_app.config.get('DEBUG', False))
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -30,13 +32,13 @@ def login():
 
         if not username or not password:
             flash("Please enter both username and password.", "warning")
-            return render_template('login.html')
+            return render_template('login.html', show_demo_credentials=show_demo)
 
         user = User.query.filter((User.username == username) | (User.email == username)).first()
         if user and user.check_password(password):
             if not user.is_active:
                 flash("This account has been deactivated. Please contact the administrator.", "danger")
-                return render_template('login.html')
+                return render_template('login.html', show_demo_credentials=show_demo)
 
             login_user(user, remember=remember)
             user.last_login = datetime.now(timezone.utc)
@@ -50,7 +52,7 @@ def login():
         else:
             flash("Invalid username or password. Please try again.", "danger")
 
-    return render_template('login.html')
+    return render_template('login.html', show_demo_credentials=show_demo)
 
 @auth_bp.route('/logout')
 @login_required

@@ -27,9 +27,13 @@ def save_cover_image(file):
 
     unique_filename = f"cover_{uuid.uuid4().hex[:10]}.{ext}"
     upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-    os.makedirs(os.path.dirname(upload_path), exist_ok=True)
-    file.save(upload_path)
-    return unique_filename
+    try:
+        os.makedirs(os.path.dirname(upload_path), exist_ok=True)
+        file.save(upload_path)
+        return unique_filename
+    except OSError as err:
+        current_app.logger.warning(f"Could not persist cover image to disk ({err}). Falling back to default cover.")
+        return None
 
 @books_bp.route('')
 @login_required

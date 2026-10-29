@@ -53,7 +53,8 @@
                     </div>
                 </form>
 
-                <!-- Demo Credentials Helper Accordion/Card for Viva & Examiners -->
+                {% if show_demo_credentials %}
+                <!-- Demo Credentials Helper Accordion/Card for Viva & Examiners (shown only in development or with SHOW_DEMO_CREDENTIALS=1) -->
                 <div class="mt-4 pt-3 border-top">
                     <div class="p-3 bg-light rounded-3 border">
                         <div class="d-flex align-items-center gap-2 mb-2">
@@ -68,6 +69,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>

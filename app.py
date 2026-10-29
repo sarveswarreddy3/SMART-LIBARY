@@ -1,19 +1,39 @@
 import os
+import tempfile
 from datetime import date
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from config import config
 from extensions import db, login_manager, csrf
 
 def create_app(config_name=None):
     """Application factory for Smart Library Management and Book Analytics System."""
     if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
+        if os.environ.get('VERCEL') or os.environ.get('FLASK_ENV') == 'production':
+            config_name = 'production'
+        else:
+            config_name = os.environ.get('FLASK_ENV', 'development')
 
-    app = Flask(__name__, instance_path='/tmp/instance')
-    app.config.from_object(config.get(config_name, config['default']))
+    # Ensure an absolute, writable instance path across Linux, Windows, and Vercel serverless
+    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+        instance_path = '/tmp/instance'
+    else:
+        instance_path = os.path.join(tempfile.gettempdir(), 'smart_library_instance')
+    
+    try:
+        os.makedirs(instance_path, exist_ok=True)
+    except OSError:
+        pass
 
-    # Ensure upload directory exists
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    app = Flask(__name__, instance_path=instance_path)
+    cfg_class = config.get(config_name, config['default'])
+    app.config.from_object(cfg_class)
+    cfg_class.init_app(app)
+
+    # Ensure upload directory exists safely without crashing if read-only
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except OSError as ex:
+        app.logger.warning(f"Upload directory notice: {ex}")
 
     # Initialize extensions
     db.init_app(app)
@@ -81,18 +101,64 @@ def create_app(config_name=None):
     def internal_server_error(e):
         return render_template('errors/500.html'), 500
 
-    # Auto-initialize database tables and default configuration
+    # Auto-initialize database tables and seed initial admin account if missing
     with app.app_context():
         try:
             db.create_all()
             from models.setting import Setting
             Setting.init_defaults()
+
+            # Ensure an administrator user exists (safe, idempotent, never overwrites existing passwords)
+            from models.user import User
+            admin_user = User.query.filter_by(role='admin').first()
+            if not admin_user:
+                admin_username = os.environ.get('INITIAL_ADMIN_USERNAME', 'admin').strip()
+                admin_email = os.environ.get('INITIAL_ADMIN_EMAIL', 'admin@library.edu').strip()
+                admin_password = os.environ.get('INITIAL_ADMIN_PASSWORD', 'Admin@123')
+                admin_name = os.environ.get('INITIAL_ADMIN_NAME', 'Apex Chief Librarian').strip()
+
+                new_admin = User(
+                    username=admin_username,
+                    email=admin_email,
+                    full_name=admin_name,
+                    role='admin',
+                    is_active_account=True
+                )
+                new_admin.set_password(admin_password)
+                db.session.add(new_admin)
+                db.session.commit()
+                app.logger.info(f"Initial administrator account '{admin_username}' provisioned.")
+
+            # In development or when explicitly requested, provision demo librarian
+            librarian_user = User.query.filter_by(role='librarian').first()
+            if not librarian_user and (app.config.get('DEBUG') or os.environ.get('SEED_DEMO_USERS') == '1'):
+                demo_lib = User(
+                    username='librarian',
+                    email='librarian@library.edu',
+                    full_name='Demo Librarian',
+                    role='librarian',
+                    is_active_account=True
+                )
+                demo_lib.set_password('Librarian@123')
+                db.session.add(demo_lib)
+                db.session.commit()
+                app.logger.info("Demo librarian account provisioned.")
         except Exception as ex:
-            app.logger.warning(f"Database init check: {ex}")
+            app.logger.error(f"Database initialization notice: {ex}")
+            if app.config.get('IS_PRODUCTION'):
+                app.logger.exception("Production database initialization error:")
 
     return app
 
-app = create_app()
+# WSGI application entry point for Vercel and production WSGI servers
+try:
+    app = create_app()
+except Exception as startup_err:
+    # If production startup fails due to missing environment variables,
+    # log critical message and provide clear diagnostic in development fallback
+    import logging
+    logging.critical(f"FATAL APPLICATION STARTUP ERROR: {startup_err}")
+    raise
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
