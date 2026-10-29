@@ -58,12 +58,6 @@ except Exception:
     inner_app = None
 
 def app(environ, start_response):
-    if environ.get('HTTP_X_DEBUG_ENV') or 'debug-env' in environ.get('HTTP_X_MATCHED_PATH', '') or 'debug-env' in environ.get('PATH_INFO', ''):
-        import pprint
-        safe_env = {k: str(v) for k, v in environ.items() if not any(s in k.lower() for s in ['secret', 'key', 'token', 'pass', 'auth', 'database', 'cookie'])}
-        start_response('200 OK', [('Content-Type', 'text/plain')])
-        return [pprint.pformat(safe_env).encode('utf-8')]
-
     if import_error:
         start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
         return [f"Startup/Import Error:\n{import_error}".encode('utf-8')]

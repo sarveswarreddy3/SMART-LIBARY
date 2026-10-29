@@ -166,7 +166,7 @@ def create_app(config_name=None):
 
             # In development or when explicitly requested, provision demo librarian
             librarian_user = User.query.filter_by(role='librarian').first()
-            if not librarian_user and (app.config.get('DEBUG') or os.environ.get('SEED_DEMO_USERS') == '1'):
+            if not librarian_user and (app.config.get('DEBUG') or app.config.get('SHOW_DEMO_CREDENTIALS') or os.environ.get('SEED_DEMO_USERS') == '1'):
                 demo_lib = User(
                     username='librarian',
                     email='librarian@library.edu',
